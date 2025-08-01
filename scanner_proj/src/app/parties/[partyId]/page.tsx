@@ -3,9 +3,8 @@
 // =================================================================================
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { getMockPartyDetails } from '@/lib/apiClient';
+import { getPartyDetails, getCases } from '@/lib/apiClient';
 import PartyProfileView from '@/features/party/components/PartyProfileView';
-import { mockCases } from '@/data/mockData';        // ← NEW
 
 interface PartyProfilePageProps {
   params: Promise<{ partyId: string }>;
@@ -13,12 +12,17 @@ interface PartyProfilePageProps {
 
 export default async function PartyProfilePage({ params }: PartyProfilePageProps) {
   const { partyId } = await params;
-  const partyDetails = await getMockPartyDetails(partyId);
+  
+  // Fetch party details and all cases in parallel
+  const [partyDetails, allCases] = await Promise.all([
+    getPartyDetails(partyId),
+    getCases()
+  ]);
 
   if (!partyDetails) notFound();
 
-  /* ---------- build “associated entities” for this person ---------- */
-  const associations = mockCases.flatMap(c =>
+  /* ---------- build "associated entities" for this person ---------- */
+  const associations = allCases.flatMap(c =>
     (c.relatedPartyLinks ?? [])
       .filter(link => link.partyId === partyId)
       .map(link => ({

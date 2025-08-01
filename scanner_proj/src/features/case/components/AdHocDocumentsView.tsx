@@ -9,11 +9,10 @@ import type {ScannerProfile } from '@/types/entities';
 import type { ChecklistDocument } from '../utils/checklist';
 
 interface AdHocDocumentsViewProps {
-    // CORRECTED: 'caseData' and 'documents' removed from props as they are not used.
     scannerProfiles: ScannerProfile[];
     onLinkDocument: (doc: ChecklistDocument) => void;
-    onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string }) => void;
-    onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => void;
+    onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, file?: File }) => void;
+    onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => Promise<{ documentId?: string; status?: string; message?: string }>;
     onShowHistory: (doc: ChecklistDocument) => void;
     onPreview: (doc: ChecklistDocument) => void;
 }

@@ -4,84 +4,217 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Save } from 'lucide-react';
 import type { TemplateDoc } from '@/types/entities';
 
 interface EditTemplateModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (entityType: string, documents: TemplateDoc[]) => void;
-    templateData: { type: string, documents: TemplateDoc[] } | null;
+    templateData: {
+        category: 'entity' | 'individual' | 'risk';
+        type: string;
+        documents: TemplateDoc[];
+    } | null;
+    onSave: (type: string, documents: TemplateDoc[]) => Promise<void>;
+    isUpdating?: boolean;
 }
 
-export default function EditTemplateModal({ isOpen, onClose, onSave, templateData }: EditTemplateModalProps) {
-    const [docs, setDocs] = useState<TemplateDoc[]>([]);
-    
-    // UPDATED: State for the new document form now includes all fields
-    const [newDoc, setNewDoc] = useState({ name: '', description: '', validityMonths: '' });
+export default function EditTemplateModal({ isOpen, onClose, templateData, onSave, isUpdating }: EditTemplateModalProps) {
+    const [documents, setDocuments] = useState<TemplateDoc[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (templateData) {
-            setDocs(templateData.documents);
+            setDocuments([...templateData.documents]);
         }
     }, [templateData]);
 
     if (!isOpen || !templateData) return null;
 
-    const handleAddDoc = () => {
-        if (newDoc.name.trim()) {
-            setDocs([...docs, {
-                name: newDoc.name.trim(),
-                description: newDoc.description.trim(),
-                validityMonths: newDoc.validityMonths ? parseInt(newDoc.validityMonths, 10) : undefined,
-                required: true,
-            }]);
-            setNewDoc({ name: '', description: '', validityMonths: '' }); // Reset form
+    const handleAddDocument = () => {
+        setDocuments([...documents, { name: '', required: true }]);
+    };
+
+    const handleRemoveDocument = (index: number) => {
+        setDocuments(documents.filter((_, i) => i !== index));
+    };
+
+    const handleUpdateDocument = <K extends keyof TemplateDoc>(
+        index: number, 
+        field: K, 
+        value: TemplateDoc[K]
+    ) => {
+        const updated = [...documents];
+        updated[index] = { ...updated[index], [field]: value };
+        setDocuments(updated);
+    };
+
+    const handleSave = async () => {
+        // Validate all documents have names
+        const hasEmptyNames = documents.some(doc => !doc.name.trim());
+        if (hasEmptyNames) {
+            alert('All documents must have a name');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            await onSave(templateData.type, documents);
+            onClose();
+        } catch (error) {
+            console.error('Failed to save:', error);
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const handleRemoveDoc = (index: number) => {
-        setDocs(docs.filter((_, i) => i !== index));
-    };
-
-    const handleSaveChanges = () => {
-        onSave(templateData.type, docs);
-        onClose();
+    const getCategoryLabel = () => {
+        switch (templateData.category) {
+            case 'entity': return 'Entity Template';
+            case 'individual': return 'Individual Template';
+            case 'risk': return 'Risk-Based Documents';
+            default: return 'Template';
+        }
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
-            <div className="p-6 rounded-xl border w-full max-w-2xl bg-white dark:bg-slate-800 dark:border-slate-700 shadow-lg max-h-[80vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200 dark:border-slate-700">
-                    <h3 className="text-xl font-bold">Edit Template: {templateData.type}</h3>
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700"><X size={16}/></button>
-                </div>
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                    {docs.map((doc, index) => (
-                        <div key={index} className="p-3 rounded-lg border bg-gray-50 dark:bg-slate-700/50 border-gray-200 dark:border-slate-600">
-                            <div className="flex items-center justify-between">
-                                <p className="font-medium">{doc.name}</p>
-                                <button onClick={() => handleRemoveDoc(index)} className="p-1.5 text-red-500 rounded-md hover:bg-red-500/10"><Trash2 size={16}/></button>
-                            </div>
-                            {doc.description && <p className="text-xs text-slate-500 mt-1">{doc.description}</p>}
-                            {doc.validityMonths && <p className="text-xs font-mono mt-1 text-blue-600 dark:text-blue-400">Requires {doc.validityMonths}-month validity</p>}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b border-gray-200 dark:border-slate-700">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                                Edit {getCategoryLabel()}
+                            </h2>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                                {templateData.type}
+                            </p>
                         </div>
-                    ))}
-                </div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-slate-700 space-y-2">
-                    <p className="font-semibold text-sm">Add New Document Requirement</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="text" value={newDoc.name} onChange={(e) => setNewDoc({...newDoc, name: e.target.value})} placeholder="Document name" className="px-3 py-2 border rounded-lg text-sm bg-white dark:bg-slate-700 dark:border-slate-600" />
-                        <input type="number" value={newDoc.validityMonths} onChange={(e) => setNewDoc({...newDoc, validityMonths: e.target.value})} placeholder="Required validity (months)" className="px-3 py-2 border rounded-lg text-sm bg-white dark:bg-slate-700 dark:border-slate-600" />
-                    </div>
-                    <textarea value={newDoc.description} onChange={(e) => setNewDoc({...newDoc, description: e.target.value})} placeholder="Description (optional)" rows={2} className="w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-slate-700 dark:border-slate-600" />
-                    <div className="flex justify-end">
-                        <button onClick={handleAddDoc} className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-500">Add</button>
+                        <button 
+                            onClick={onClose} 
+                            disabled={isSaving || isUpdating}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
                     </div>
                 </div>
-                <div className="flex justify-end gap-4 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm bg-gray-200 dark:bg-slate-600">Cancel</button>
-                    <button onClick={handleSaveChanges} className="px-4 py-2 rounded-lg text-sm text-white bg-blue-600 hover:bg-blue-500">Save Changes</button>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="space-y-4">
+                        {documents.map((doc, index) => (
+                            <div key={index} className="p-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Document Name *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={doc.name}
+                                            onChange={(e) => handleUpdateDocument(index, 'name', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., Certificate of Incorporation"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                            Validity Period (months)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={doc.validityMonths || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                handleUpdateDocument(index, 'validityMonths', value ? parseInt(value) : undefined);
+                                            }}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                            placeholder="e.g., 12"
+                                            min="1"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Description
+                                    </label>
+                                    <textarea
+                                        value={doc.description || ''}
+                                        onChange={(e) => handleUpdateDocument(index, 'description', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Brief description of this document requirement"
+                                        rows={2}
+                                    />
+                                </div>
+
+                                <div className="mt-4 flex items-center justify-between">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={doc.required !== false}
+                                            onChange={(e) => handleUpdateDocument(index, 'required', e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Required Document
+                                        </span>
+                                    </label>
+                                    
+                                    <button
+                                        onClick={() => handleRemoveDocument(index)}
+                                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-lg transition-colors"
+                                        title="Remove document"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+
+                        <button
+                            onClick={handleAddDocument}
+                            className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 transition-colors flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                        >
+                            <Plus size={20} />
+                            <span className="font-medium">Add Document</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-gray-200 dark:border-slate-700">
+                    <div className="flex justify-between items-center">
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            {documents.length} document{documents.length !== 1 ? 's' : ''} configured
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onClose}
+                                disabled={isSaving || isUpdating}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving || isUpdating}
+                                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {(isSaving || isUpdating) ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save size={16} />
+                                        Save Changes
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

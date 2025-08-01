@@ -1,8 +1,3 @@
-// =================================================================================
-// FILE: src/features/case/components/WorkflowProgress.tsx
-// =================================================================================
-'use client';
-
 import React from 'react';
 import { CheckCircle, Search, FileText, UserCheck, ThumbsUp } from 'lucide-react';
 
@@ -20,12 +15,26 @@ const stages: WorkflowStage[] = [
     { id: 'completed', label: 'Completed', icon: CheckCircle },
 ];
 
+// Map the actual workflowStage values from your data to the display stages
+const stageMapping: Record<string, string> = {
+    'initiation': 'prospect',
+    'prospect': 'prospect',
+    'document_collection': 'document_collection',
+    'kyc_review': 'kyc_review',
+    'pending_approval': 'approval',
+    'approval': 'approval',
+    'completed': 'completed',
+    'active': 'completed',
+};
+
 interface WorkflowProgressProps {
     currentStageId: string;
 }
 
 export function WorkflowProgress({ currentStageId }: WorkflowProgressProps) {
-    const currentIndex = stages.findIndex(s => s.id === currentStageId);
+    // Map the actual stage ID to our display stage
+    const mappedStageId = stageMapping[currentStageId] || currentStageId;
+    const currentIndex = stages.findIndex(s => s.id === mappedStageId);
 
     return (
         <div className="w-full">

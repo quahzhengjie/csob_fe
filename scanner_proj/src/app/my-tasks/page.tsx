@@ -2,12 +2,14 @@
 // FILE: src/app/my-tasks/page.tsx
 // =================================================================================
 import React from 'react';
-import { getMockCases } from '@/lib/apiClient';
+// CORRECTED: Import the new, integrated 'getCases' function
+import { getCases } from '@/lib/apiClient';
 import { MyTasksView } from '@/features/tasks/components/MyTasksView';
 import type { Case } from '@/types/entities';
 
 export default async function MyTasksPage() {
-    const allCases = await getMockCases();
+    // CORRECTED: Call the new 'getCases' function to fetch live data
+    const allCases = await getCases();
 
     // In a real app, you'd get the current user ID from the session.
     const currentUserId = 'USER-001';

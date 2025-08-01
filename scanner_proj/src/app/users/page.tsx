@@ -2,13 +2,15 @@
 // FILE: src/app/users/page.tsx
 // =================================================================================
 import React from 'react';
-import { getMockUsers, getMockEnums } from '@/lib/apiClient';
+// CORRECTED: Import the new, integrated functions
+import { getUsers, getEnums } from '@/lib/apiClient';
 import { UserManagementView } from '@/features/admin/components/UserManagementView';
 import { WithPermission } from '@/features/rbac/WithPermission';
 
 export default async function UsersPage() {
-    const users = await getMockUsers();
-    const { roles } = await getMockEnums();
+    // CORRECTED: Call the new functions to fetch live data
+    const users = await getUsers();
+    const { roles } = await getEnums();
 
     return (
         <WithPermission permission="admin:manage-users">

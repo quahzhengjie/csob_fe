@@ -9,12 +9,19 @@ import type { Case, ScannerProfile } from '@/types/entities';
 import type { ChecklistDocument } from '../utils/checklist';
 import { DocumentRequirement } from './DocumentRequirement';
 
+// Define the scan response type
+interface ScanResponse {
+  documentId?: string;
+  status?: string;
+  message?: string;
+}
+
 interface CreditDetailsViewProps {
     caseData: Case;
     scannerProfiles: ScannerProfile[];
     onLinkDocument: (doc: ChecklistDocument) => void;
-    onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string }) => void;
-    onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => void;
+    onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, file?: File }) => void;
+    onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => Promise<ScanResponse>;
     onShowHistory: (doc: ChecklistDocument) => void;
     onPreview: (doc: ChecklistDocument) => void;
 }

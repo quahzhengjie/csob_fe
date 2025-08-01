@@ -3,7 +3,7 @@
 // =================================================================================
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { getCaseDetails, getMockParties } from '@/lib/apiClient';
+import { getCaseDetails, getParties } from '@/lib/apiClient';
 import CaseDetailView from '@/features/case/components/CaseDetailView';
 
 // CORRECTED: The 'params' prop type must be a Promise.
@@ -19,7 +19,7 @@ export default async function CaseDetailPage({ params }: CaseDetailPageProps) {
   // CORRECTED: We must 'await' the params promise to get the value.
   const { caseId } = await params;
   const details = await getCaseDetails(caseId);
-  const allParties = await getMockParties();
+  const allParties = await getParties();
 
   if (!details) {
     notFound();

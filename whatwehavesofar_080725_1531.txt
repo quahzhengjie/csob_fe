@@ -1,0 +1,967 @@
+// =================================================================================
+// FILE: tailwind.config.ts
+// =================================================================================
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/features/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+  darkMode: 'class', // Enable class-based dark mode
+};
+export default config;
+
+
+// =================================================================================
+// FILE: src/app/globals.css
+// =================================================================================
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+// =================================================================================
+// FILE: src/data/mockData.ts
+// =================================================================================
+// This file contains all the raw mock data for the application.
+
+import type { Case, Party, Document, CaseDocumentLink } from '@/types/entities';
+
+export const mockUsers = [
+  { userId: 'USER-001', name: 'Admin User', email: 'admin@bank.com', role: 'General Manager' },
+  { userId: 'USER-002', name: 'Sarah Approver', email: 'sarah.approver@bank.com', role: 'Deposits Manager' },
+];
+
+export const mockParties: Party[] = [
+    { partyId: "PARTY-001", name: "John Tan", residencyStatus: "Singaporean/PR" },
+    { partyId: "PARTY-002", name: "Sarah Chen", residencyStatus: "Foreigner" },
+    { partyId: "PARTY-003", name: "Michael Lim", residencyStatus: "Singaporean/PR" },
+];
+
+export const mockDocuments: Document[] = [
+    { documentId: "DOC-001", ownerId: "PARTY-001", name: "NRIC / Birth Certificate", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2024-05-10", fileRef: "/path/to/john_nric.pdf" }] },
+    { documentId: "DOC-002", ownerId: "PARTY-002", name: "Passport", versions: [ { id: 'v2', version: 2, status: "Verified", uploadedDate: "2024-06-15", expiryDate: "2029-06-14", fileRef: "/path/to/sarah_passport_v2.pdf" } ]},
+    { documentId: "DOC-003", ownerId: "PARTY-002", name: "Proof of Residential Address", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2024-06-15", expiryDate: "2024-12-01", fileRef: "/path/to/sarah_address.png" }] },
+    { documentId: "DOC-004", ownerId: "PARTY-003", name: "NRIC / Birth Certificate", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2025-01-09", fileRef: "/path/to/michael_nric.pdf" }] },
+    { documentId: "DOC-101", ownerId: "CUST-001", name: "ARCA / Questnet Search", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2025-01-16", expiryDate: "2024-12-01", fileRef: "/path/to/arca.pdf" }] },
+    { documentId: "DOC-102", ownerId: "CUST-001", name: "Account Application Form", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2025-01-16", fileRef: "/path/to/form.pdf" }] },
+    // Added a verified version of this doc to demonstrate smart linking
+    { documentId: "DOC-103", ownerId: "CUST-001", name: "Certificate of Incorporation", versions: [{ id: 'v1', version: 1, status: "Verified", uploadedDate: "2023-01-01", fileRef: "/path/to/incorp_cert.pdf" }] },
+];
+
+export const mockCaseDocumentLinks: CaseDocumentLink[] = [
+    { linkId: "LNK-001", caseId: "CASE-2025-001", documentId: "DOC-101", versionId: 'v1', status: "Verified" },
+    { linkId: "LNK-002", caseId: "CASE-2025-001", documentId: "DOC-102", versionId: 'v1', status: "Verified" },
+    { linkId: "LNK-004", caseId: "CASE-2025-001", documentId: "DOC-001", versionId: 'v1', status: "Verified" },
+    { linkId: "LNK-005", caseId: "CASE-2025-001", documentId: "DOC-002", versionId: 'v2', status: "Verified" },
+];
+
+export const mockCases: Case[] = [
+    { 
+      "caseId": "CASE-2025-001", "status": "KYC Review", "riskLevel": "High", 
+      "entity": { "customerId": "CUST-001", "entityName": "TechStart Innovations Pte Ltd", "entityType": "Non-Listed Company" },
+      "relatedPartyLinks": [
+        { "partyId": "PARTY-001", "relationships": [{ "type": "Director" }, { "type": "Authorised Signatory" }] }, 
+        { "partyId": "PARTY-002", "relationships": [{ "type": "Shareholder", "ownershipPercentage": 40 }] }
+      ]
+    },
+    { 
+      "caseId": "CASE-2025-002", "status": "Pending Approval", "riskLevel": "Medium",
+      "entity": { "customerId": "CUST-002", "entityName": "Lim Family Trust", "entityType": "Trust Account" },
+      "relatedPartyLinks": []
+    },
+    { 
+      "caseId": "CASE-2025-003", "status": "Active", "riskLevel": "Low",
+      "entity": { "customerId": "CUST-003", "entityName": "Global Exports LLP", "entityType": "Partnership" },
+      "relatedPartyLinks": []
+    }
+];
+
+
+// =================================================================================
+// FILE: src/types/entities.ts
+// =================================================================================
+// Defines the core data structures for our application entities.
+
+export interface DocumentVersion {
+  id: string;
+  version: number;
+  status: string; // 'Verified', 'Submitted', etc.
+  uploadedDate: string;
+  fileRef: string;
+  expiryDate?: string;
+}
+
+export interface Document {
+  documentId: string;
+  ownerId: string;
+  name: string;
+  versions: DocumentVersion[];
+}
+
+export interface Case {
+  caseId: string;
+  status: string;
+  riskLevel: string;
+  entity: {
+    customerId: string;
+    entityName: string;
+    entityType: string;
+  };
+  relatedPartyLinks: {
+    partyId: string;
+    relationships: { type: string; ownershipPercentage?: number }[];
+  }[];
+}
+
+export interface Party {
+  partyId: string;
+  name: string;
+  residencyStatus: string;
+}
+
+export interface CaseDocumentLink {
+  linkId: string;
+  caseId: string;
+  documentId: string;
+  versionId: string;
+  status: string;
+}
+
+
+// =================================================================================
+// FILE: src/types/enums.ts
+// =================================================================================
+// Defines the core shapes for our dynamic configuration data.
+
+export interface EnumItemConfig {
+  label: string;
+  color: string;
+  darkColor: string;
+  icon?: string;
+}
+
+export type EnumPayload = Record<string, EnumItemConfig> & {
+  _DEFAULT: EnumItemConfig;
+};
+
+export interface RoleConfig {
+  label: string;
+  permissions: Record<string, boolean>;
+}
+
+
+// =================================================================================
+// FILE: src/lib/apiClient.ts
+// =================================================================================
+import type { EnumPayload, RoleConfig, EnumItemConfig } from '@/types/enums';
+import type { Case } from '@/types/entities';
+import { mockCases, mockParties, mockDocuments, mockCaseDocumentLinks } from '@/data/mockData';
+
+export const getMockEnums = async (): Promise<{ enums: Record<string, EnumPayload>; roles: Record<string, RoleConfig> }> => {
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  const riskLevelDefault: EnumItemConfig = { label: 'Unknown', color: 'bg-gray-100 text-gray-800', darkColor: 'bg-slate-700 text-gray-300', icon: 'Shield' };
+  const caseStatusDefault: EnumItemConfig = { label: 'Unknown', color: 'bg-gray-100 text-gray-800', darkColor: 'bg-slate-700 text-gray-300', icon: 'FileText' };
+
+  return {
+    enums: {
+      riskLevel: {
+        Low: { label: 'Low Risk', color: 'bg-green-100 text-green-800', darkColor: 'bg-green-900 text-green-300', icon: 'Shield' },
+        Medium: { label: 'Medium Risk', color: 'bg-yellow-100 text-yellow-800', darkColor: 'bg-yellow-900 text-yellow-300', icon: 'Shield' },
+        High: { label: 'High Risk', color: 'bg-red-100 text-red-800', darkColor: 'bg-red-900 text-red-300', icon: 'Shield' },
+        _DEFAULT: riskLevelDefault,
+      },
+      caseStatus: {
+        Active: { label: 'Active', color: 'bg-green-100 text-green-800', darkColor: 'bg-green-900 text-green-300', icon: 'CheckCircle' },
+        'KYC Review': { label: 'KYC Review', color: 'bg-yellow-100 text-yellow-800', darkColor: 'bg-yellow-900 text-yellow-300', icon: 'AlertCircle' },
+        'Pending Approval': { label: 'Pending Approval', color: 'bg-purple-100 text-purple-800', darkColor: 'bg-purple-900 text-purple-300', icon: 'ThumbsUp' },
+        _DEFAULT: caseStatusDefault,
+      }
+    },
+    roles: {
+      'General Manager': {
+        label: 'General Manager',
+        permissions: { 'case:read': true, 'case:update': true, 'case:approve': true, 'admin:manage-users': true },
+      },
+      'Viewer': {
+        label: 'Read-Only User',
+        permissions: { 'case:read': true, 'case:update': false, 'case:approve': false, 'admin:manage-users': false },
+      },
+    },
+  };
+};
+
+export const getMockCases = async (): Promise<Case[]> => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return mockCases;
+};
+
+export const getMockCaseById = async (id: string): Promise<Case | undefined> => {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    return mockCases.find(c => c.caseId === id);
+};
+
+// New function to get all data needed for the case detail page.
+export const getCaseDetails = async (caseId: string) => {
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const caseData = mockCases.find(c => c.caseId === caseId);
+    if (!caseData) return null;
+
+    // In a real app, this would be a more complex query joining multiple tables.
+    // Here, we simulate it by fetching all related data.
+    return {
+        caseData,
+        parties: mockParties,
+        documents: mockDocuments,
+        documentLinks: mockCaseDocumentLinks.filter(link => link.caseId === caseId),
+    };
+};
+
+
+// =================================================================================
+// FILE: src/features/enums/useEnumStore.tsx
+// =================================================================================
+'use client';
+
+import {
+  type ReactNode,
+  createContext,
+  useContext,
+  useRef,
+} from 'react';
+import {
+  createStore,
+  type StoreApi,
+  useStore,
+} from 'zustand';
+import type { EnumPayload, RoleConfig } from '@/types/enums';
+
+export interface EnumState {
+  enums: Record<string, EnumPayload>;
+  roles: Record<string, RoleConfig>;
+}
+
+export const createEnumStore = (init: EnumState) =>
+  createStore<EnumState>(() => ({ ...init }));
+
+const EnumStoreContext = createContext<StoreApi<EnumState> | null>(null);
+
+export const EnumStoreProvider = ({
+  children,
+  initialState,
+}: {
+  children: ReactNode;
+  initialState: EnumState;
+}) => {
+  const storeRef = useRef<StoreApi<EnumState> | null>(null);
+  if (!storeRef.current) storeRef.current = createEnumStore(initialState);
+
+  return (
+    <EnumStoreContext.Provider value={storeRef.current}>
+      {children}
+    </EnumStoreContext.Provider>
+  );
+};
+
+export const useEnumStore = <T,>(selector: (s: EnumState) => T): T => {
+  const ctx = useContext(EnumStoreContext);
+  if (!ctx) throw new Error('useEnumStore must be used within EnumStoreProvider');
+  return useStore(ctx, selector);
+};
+
+
+// =================================================================================
+// FILE: src/features/rbac/usePermission.ts
+// =================================================================================
+'use client';
+
+import { useEnumStore } from '@/features/enums/useEnumStore';
+
+const getSession = () => ({
+  user: { name: 'Admin User', role: 'General Manager' },
+});
+
+export const useHasPermission = (permission: string): boolean => {
+  const roles = useEnumStore((s) => s.roles);
+  const session = getSession();
+  if (!session?.user?.role) return false;
+  return !!roles[session.user.role]?.permissions?.[permission];
+};
+
+
+// =================================================================================
+// FILE: src/hooks/useTheme.tsx
+// =================================================================================
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+interface ThemeContextType {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setDarkMode(isDark);
+  }, []);
+
+  const toggleDarkMode = () => {
+    setDarkMode(isDark => {
+      const newIsDark = !isDark;
+      if (newIsDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return newIsDark;
+    });
+  };
+
+  return (
+    <ThemeContext.Provider value={{ darkMode, toggleDarkMode }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+
+// =================================================================================
+// FILE: src/components/layout/Header.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { Moon, Sun, Home, Users, Settings } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { useTheme } from '@/hooks/useTheme';
+
+export function Header() {
+  const { darkMode, toggleDarkMode } = useTheme();
+  const pathname = usePathname();
+
+  const navLinks = [
+    { href: '/', label: 'Dashboard', icon: Home },
+    { href: '/cases', label: 'Cases', icon: Users },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ];
+
+  return (
+    <header className="sticky top-0 z-30 border-b bg-white/80 dark:bg-slate-900/80 border-gray-200 dark:border-slate-700 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center gap-8">
+            <Link href="/" className="font-bold text-lg text-slate-800 dark:text-white">
+              KYC Platform
+            </Link>
+            <nav className="hidden md:flex items-center gap-2">
+              {navLinks.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === href
+                      ? 'bg-gray-100 dark:bg-slate-800 text-slate-900 dark:text-white'
+                      : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon size={16} />
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 rounded-full text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+            >
+              {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/app/layout.tsx
+// =================================================================================
+import React from 'react';
+import { getMockEnums } from '@/lib/apiClient';
+import { Header } from '@/components/layout/Header';
+import { ThemeProvider } from '@/hooks/useTheme';
+import { EnumStoreProvider } from '@/features/enums/useEnumStore';
+import './globals.css';
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { enums, roles } = await getMockEnums();
+
+  return (
+    <html lang="en" className="">
+      <body className="min-h-screen bg-gray-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300">
+        <EnumStoreProvider initialState={{ enums, roles }}>
+          <ThemeProvider>
+            <Header />
+            <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+              {children}
+            </main>
+          </ThemeProvider>
+        </EnumStoreProvider>
+      </body>
+    </html>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/components/common/DynamicIcon.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import * as LucideIcons from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
+
+export const DynamicIcon = (
+  { name, ...props }: { name: string } & LucideProps,
+) => {
+  const Icon =
+    (LucideIcons[name as keyof typeof LucideIcons] ??
+      null) as React.ComponentType<LucideProps> | null;
+
+  return Icon ? <Icon {...props} /> : null;
+};
+
+
+// =================================================================================
+// FILE: src/components/common/RiskBadge.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import { useEnumStore } from '@/features/enums/useEnumStore';
+import { useTheme } from '@/hooks/useTheme';
+import { DynamicIcon } from '@/components/common/DynamicIcon';
+
+interface RiskBadgeProps {
+  level: string;
+}
+
+export const RiskBadge = ({ level }: RiskBadgeProps) => {
+  const cfgMap  = useEnumStore((s) => s.enums.riskLevel);
+  const { darkMode } = useTheme();
+
+  const cfg = cfgMap[level] ?? cfgMap._DEFAULT;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-x-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+        darkMode ? cfg.darkColor : cfg.color
+      }`}
+    >
+      {cfg.icon && <DynamicIcon name={cfg.icon} size={12} />}
+      {cfg.label}
+    </span>
+  );
+};
+
+
+// =================================================================================
+// FILE: src/components/common/StatusBadge.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import { useEnumStore } from '@/features/enums/useEnumStore';
+import { useTheme } from '@/hooks/useTheme';
+import { DynamicIcon } from '@/components/common/DynamicIcon';
+
+interface StatusBadgeProps {
+  status: string;
+}
+
+export const StatusBadge = ({ status }: StatusBadgeProps) => {
+  const cfgMap  = useEnumStore((s) => s.enums.caseStatus);
+  const { darkMode } = useTheme();
+
+  const cfg = cfgMap[status] ?? cfgMap._DEFAULT;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-x-1.5 px-2 py-1 rounded-full text-xs font-medium ${
+        darkMode ? cfg.darkColor : cfg.color
+      }`}
+    >
+      {cfg.icon && <DynamicIcon name={cfg.icon} size={12} />}
+      {cfg.label}
+    </span>
+  );
+};
+
+
+// =================================================================================
+// FILE: src/features/cases/components/CasesListView.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import type { Case } from '@/types/entities';
+import { RiskBadge } from '@/components/common/RiskBadge';
+import { StatusBadge } from '@/components/common/StatusBadge';
+
+interface CasesListViewProps {
+  cases: Case[];
+}
+
+export function CasesListView({ cases }: CasesListViewProps) {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Cases</h1>
+        {/* Search and filter UI will go here */}
+      </div>
+      <div className="rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+            <tr>
+              <th className="p-4 font-semibold">Entity Name</th>
+              <th className="p-4 font-semibold">Entity Type</th>
+              <th className="p-4 font-semibold">Risk Level</th>
+              <th className="p-4 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
+            {cases.map((c) => (
+              <tr key={c.caseId} className="hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                <td className="p-4 font-medium text-slate-900 dark:text-white">
+                  <Link href={`/cases/${c.caseId}`} className="hover:underline">
+                    {c.entity.entityName}
+                  </Link>
+                </td>
+                <td className="p-4 text-slate-500 dark:text-slate-400">{c.entity.entityType}</td>
+                <td className="p-4">
+                  <RiskBadge level={c.riskLevel} />
+                </td>
+                <td className="p-4">
+                  <StatusBadge status={c.status} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/app/cases/page.tsx
+// =================================================================================
+import React from 'react';
+import { getMockCases } from '@/lib/apiClient';
+import { CasesListView } from '@/features/cases/components/CasesListView';
+
+export default async function CasesPage() {
+  const cases = await getMockCases();
+  return <CasesListView cases={cases} />;
+}
+
+
+// =================================================================================
+// FILE: src/features/case/utils/checklist.ts
+// =================================================================================
+import type { Case, Party, Document, CaseDocumentLink } from '@/types/entities';
+
+// CORRECTED: Added a specific type for the template to avoid implicit any.
+interface DocumentRequirementTemplate {
+  name: string;
+  required: boolean;
+}
+
+interface DocumentRequirements {
+  individualTemplates: Record<string, DocumentRequirementTemplate[]>;
+  entityTemplates: Record<string, DocumentRequirementTemplate[]>;
+  bankFormTemplates: {
+    corporate: string[];
+    individualStakeholder: string[];
+  };
+  riskBasedDocuments: Record<string, DocumentRequirementTemplate[]>;
+}
+
+const documentRequirementsTemplate: DocumentRequirements = {
+  individualTemplates: { "Singaporean/PR": [{ name: "NRIC / Birth Certificate", required: true }], "Foreigner": [{ name: "Passport", required: true }, { name: "Proof of Residential Address", required: true }] },
+  entityTemplates: { "Non-Listed Company": [{ name: "ARCA / Questnet Search", required: true }, { name: "Certificate of Incorporation", required: true }] },
+  bankFormTemplates: { corporate: ["Account Application Form"], individualStakeholder: [] },
+  riskBasedDocuments: { High: [{ name: "Source of Wealth Declaration", required: true }] },
+};
+
+export interface ChecklistDocument {
+    name: string;
+    status: string;
+    required?: boolean;
+    id?: string;
+    version?: number;
+    uploadedDate?: string;
+    fileRef?: string;
+    expiryDate?: string;
+    // New property to hold info about a reusable document
+    reusableDocument?: {
+        documentId: string;
+        versionId: string;
+    } | null;
+}
+
+export interface ChecklistSection {
+    category: string;
+    documents: ChecklistDocument[];
+}
+
+export const generateLiveChecklist = (
+    onboardingCase: Case, 
+    parties: Party[], 
+    allDocuments: Document[], 
+    caseDocumentLinks: CaseDocumentLink[]
+): ChecklistSection[] => {
+    if (!onboardingCase) return [];
+    const { entity, relatedPartyLinks, riskLevel } = onboardingCase;
+    const checklist: ChecklistSection[] = [];
+
+    const findDocumentContext = (docName: string, ownerId: string): ChecklistDocument => {
+        // Find if this document is already linked to the *current case*
+        const linkedDoc = allDocuments.find(d => {
+            const link = caseDocumentLinks.find(l => l.documentId === d.documentId);
+            return d.ownerId === ownerId && d.name === docName && !!link;
+        });
+
+        if (linkedDoc) {
+            const link = caseDocumentLinks.find(l => l.documentId === linkedDoc.documentId)!;
+            const version = linkedDoc.versions.find(v => v.id === link.versionId) || linkedDoc.versions[linkedDoc.versions.length - 1];
+            return { ...version, name: linkedDoc.name, status: link.status };
+        }
+
+        // If not linked, check if a verified master document exists for this owner
+        const reusableMasterDoc = allDocuments.find(d => 
+            d.ownerId === ownerId && 
+            d.name === docName &&
+            d.versions.some(v => v.status === 'Verified')
+        );
+
+        if (reusableMasterDoc) {
+            const latestVerifiedVersion = reusableMasterDoc.versions
+                .filter(v => v.status === 'Verified')
+                .sort((a, b) => b.version - a.version)[0];
+            
+            return {
+                name: docName,
+                status: 'Missing',
+                reusableDocument: {
+                    documentId: reusableMasterDoc.documentId,
+                    versionId: latestVerifiedVersion.id,
+                }
+            };
+        }
+
+        return { status: 'Missing', name: docName };
+    };
+
+    const entityTemplate = documentRequirementsTemplate.entityTemplates[entity.entityType];
+    if (entityTemplate) {
+        const docs = [...entityTemplate, ...documentRequirementsTemplate.bankFormTemplates.corporate.map((name: string) => ({ name, required: true }))];
+        if (riskLevel === 'High') {
+            docs.push(...documentRequirementsTemplate.riskBasedDocuments.High);
+        }
+        checklist.push({
+            category: 'Entity Documents & Forms',
+            documents: docs.map((t) => ({ ...t, ...findDocumentContext(t.name, entity.customerId) }))
+        });
+    }
+
+    (relatedPartyLinks || []).forEach(partyLink => {
+        const party = parties.find(p => p.partyId === partyLink.partyId);
+        if (!party) return;
+
+        const individualTemplates = documentRequirementsTemplate.individualTemplates[party.residencyStatus] || [];
+        checklist.push({
+            category: `Documents for ${party.name}`,
+            documents: individualTemplates.map((t) => ({ ...t, ...findDocumentContext(t.name, party.partyId) }))
+        });
+    });
+
+    return checklist;
+};
+
+
+// =================================================================================
+// FILE: src/features/case/components/DocumentRequirement.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import { FileText, Link as LinkIcon, Upload } from 'lucide-react';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import type { ChecklistDocument } from '../utils/checklist';
+
+interface DocumentRequirementProps {
+  document: ChecklistDocument;
+  onLink: (doc: ChecklistDocument) => void;
+}
+
+export function DocumentRequirement({ document, onLink }: DocumentRequirementProps) {
+  return (
+    <div className="p-3 flex items-center justify-between border-b border-gray-200 dark:border-slate-700 last:border-b-0">
+      <div className="flex items-center space-x-3">
+        <FileText className="h-5 w-5 text-slate-400" />
+        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{document.name}</span>
+      </div>
+      <div className="flex items-center gap-4">
+        <StatusBadge status={document.status} />
+        {document.status === 'Missing' && document.reusableDocument && (
+            <button onClick={() => onLink(document)} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline">
+                <LinkIcon size={12} />
+                Link to this case
+            </button>
+        )}
+        {document.status === 'Missing' && !document.reusableDocument && (
+            <button className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:underline">
+                <Upload size={12} />
+                Upload
+            </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/features/case/components/DocumentChecklist.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import type { Case, Party, Document, CaseDocumentLink } from '@/types/entities';
+import { generateLiveChecklist, type ChecklistDocument } from '../utils/checklist';
+import { DocumentRequirement } from './DocumentRequirement';
+
+interface DocumentChecklistProps {
+  caseData: Case;
+  parties: Party[];
+  documents: Document[];
+  documentLinks: CaseDocumentLink[];
+  onLinkDocument: (doc: ChecklistDocument) => void;
+}
+
+export function DocumentChecklist({ caseData, parties, documents, documentLinks, onLinkDocument }: DocumentChecklistProps) {
+  const checklist = generateLiveChecklist(caseData, parties, documents, documentLinks);
+
+  return (
+    <div className="p-6 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700">
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Document Checklist</h2>
+      <div className="space-y-6">
+        {checklist.map((section) => (
+          <div key={section.category}>
+            <h3 className="text-md font-semibold text-slate-700 dark:text-slate-300 mb-2">{section.category}</h3>
+            <div className="rounded-lg border border-gray-200 dark:border-slate-700">
+              {section.documents.map((doc, index) => (
+                <DocumentRequirement key={index} document={doc} onLink={onLinkDocument} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/features/case/components/CaseDetailView.tsx
+// =================================================================================
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { ChevronLeft, Edit } from 'lucide-react';
+import type { Case, Party, Document, CaseDocumentLink } from '@/types/entities';
+import { RiskBadge } from '@/components/common/RiskBadge';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { useHasPermission } from '@/features/rbac/usePermission';
+import { DocumentChecklist } from './DocumentChecklist';
+import type { ChecklistDocument } from '../utils/checklist';
+
+interface CaseDetailViewProps {
+  details: {
+    caseData: Case;
+    parties: Party[];
+    documents: Document[];
+    documentLinks: CaseDocumentLink[];
+  }
+}
+
+export function CaseDetailView({ details: initialDetails }: CaseDetailViewProps) {
+  const [details, setDetails] = useState(initialDetails);
+  const { caseData, parties, documents, documentLinks } = details;
+  const canUpdate = useHasPermission('case:update');
+
+  const handleLinkDocument = (docToLink: ChecklistDocument) => {
+    if (!docToLink.reusableDocument) return;
+
+    const newLink: CaseDocumentLink = {
+        linkId: `LNK-${crypto.randomUUID()}`,
+        caseId: caseData.caseId,
+        documentId: docToLink.reusableDocument.documentId,
+        versionId: docToLink.reusableDocument.versionId,
+        status: 'Verified',
+    };
+
+    setDetails(currentDetails => ({
+        ...currentDetails,
+        documentLinks: [...currentDetails.documentLinks, newLink]
+    }));
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="p-6 rounded-xl border bg-white dark:bg-slate-800 dark:border-slate-700 shadow-sm">
+        <div className="flex justify-between items-start">
+          <div>
+            <Link href="/cases" className="flex items-center gap-2 text-sm mb-4 text-blue-600 dark:text-blue-400 hover:underline">
+              <ChevronLeft size={16} /> Back to Cases
+            </Link>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{caseData.entity.entityName}</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {caseData.entity.entityType} &bull; Case ID: {caseData.caseId}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex gap-2">
+              <StatusBadge status={caseData.status} />
+              <RiskBadge level={caseData.riskLevel} />
+            </div>
+            {canUpdate && (
+              <button className="mt-2 text-xs flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                <Edit size={12} /> Update Case
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <DocumentChecklist 
+        caseData={caseData}
+        parties={parties}
+        documents={documents}
+        documentLinks={documentLinks}
+        onLinkDocument={handleLinkDocument}
+      />
+    </div>
+  );
+}
+
+
+// =================================================================================
+// FILE: src/app/cases/[caseId]/page.tsx
+// =================================================================================
+import React from 'react';
+import { notFound } from 'next/navigation';
+import { getCaseDetails } from '@/lib/apiClient';
+import { CaseDetailView } from '@/features/case/components/CaseDetailView';
+
+export default async function CaseDetailPage({
+  params,
+}: {
+  params: Promise<{ caseId: string }>;
+}) {
+  const { caseId } = await params;
+  const details = await getCaseDetails(caseId);
+
+  if (!details) {
+    notFound();
+  }
+
+  return <CaseDetailView details={details} />;
+}
+
+
+// =================================================================================
+// FILE: src/app/page.tsx
+// =================================================================================
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { useHasPermission } from '@/features/rbac/usePermission';
+import { RiskBadge } from '@/components/common/RiskBadge';
+
+export default function HomePage() {
+  const canUpdate = useHasPermission('case:update');
+  const canApprove = useHasPermission('case:approve');
+  const canManageUsers = useHasPermission('admin:manage-users');
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="p-6 border rounded-lg bg-white dark:bg-slate-800 dark:border-slate-700 space-y-4">
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+            Core Features
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Navigate to the main features of the application.
+          </p>
+          <div className="flex items-center gap-4">
+            <Link href="/cases" className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-md">
+                View Cases
+            </Link>
+          </div>
+        </div>
+
+        <div className="p-6 border rounded-lg bg-white dark:bg-slate-800 dark:border-slate-700 space-y-4">
+          <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-200">
+            RBAC Hook Demo
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            The current user role is 'General Manager'. Permissions are checked against the seeded store.
+          </p>
+          <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+            <li>Can update case? <span className={`font-semibold ${canUpdate ? 'text-green-600' : 'text-red-600'}`}>{canUpdate ? '✅ Yes' : '❌ No'}</span></li>
+            <li>Can approve case? <span className={`font-semibold ${canApprove ? 'text-green-600' : 'text-red-600'}`}>{canApprove ? '✅ Yes' : '❌ No'}</span></li>
+            <li>Can manage users? <span className={`font-semibold ${canManageUsers ? 'text-green-600' : 'text-red-600'}`}>{canManageUsers ? '✅ Yes' : '❌ No'}</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}

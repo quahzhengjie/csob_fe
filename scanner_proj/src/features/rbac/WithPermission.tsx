@@ -12,11 +12,8 @@ interface WithPermissionProps {
 }
 
 export function WithPermission({ permission, children }: WithPermissionProps) {
-  // CORRECTED:
-  // 1. Call the hook with no arguments to get the checker function.
   const hasPermission = useHasPermission();
 
-  // 2. Call the returned function with the desired permission to get the boolean result.
   if (!hasPermission(permission)) {
     return null;
   }

@@ -1,5 +1,5 @@
 // =================================================================================
-// FILE: src/features/party/components/PartyProfileView.refactored.tsx
+// FILE: src/features/party/components/PartyProfileView.tsx
 // =================================================================================
 'use client';
 
@@ -19,7 +19,7 @@ import {
 
 import type { Party, Document } from '@/types/entities';
 import { DocStatusBadge } from '@/components/common/DocStatusBadge';
-import { updateMockParty } from '@/lib/apiClient';
+import { updateParty } from '@/lib/apiClient';
 import { WithPermission } from '@/features/rbac/WithPermission';
 
 /* -------------------------------------------------------------------------- */
@@ -294,11 +294,15 @@ export default function PartyProfileView({ details }: PartyProfileViewProps) {
   }, [initialParty]);
 
   const handleSave = async (updatedData: Party) => {
-    const updatedParty = await updateMockParty(updatedData);
-    if (updatedParty) {
-      setParty(updatedParty);
+    try {
+      const updatedParty = await updateParty(party.partyId, updatedData);
+      if (updatedParty) {
+        setParty(updatedParty);
+      }
+    } catch (error) {
+      console.error('Failed to update party:', error);
+      // Consider adding error handling here (e.g., a toast notification)
     }
-    // Consider adding error handling here (e.g., a toast notification)
   };
 
   return (

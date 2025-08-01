@@ -4,7 +4,6 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-//import { useRouter } from 'next/navigation';
 import { Plus, Search } from 'lucide-react';
 import type { Case, CaseCreationData } from '@/types/entities';
 import { useEnumStore } from '@/features/enums/useEnumStore';
@@ -13,7 +12,8 @@ import { RiskBadge } from '@/components/common/RiskBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { type RiskLevel, type CaseStatus } from '@/types/enums';
 import { NewCaseModal } from './NewCaseModal';
-import { createMockCase } from '@/lib/apiClient';
+// CORRECTED: Import the new, integrated 'createCase' function
+import { createCase } from '@/lib/apiClient';
 
 interface CasesListViewProps {
   cases: Case[];
@@ -34,7 +34,6 @@ const FilterButton = ({ label, onClick, isActive }: { label: string, onClick: ()
 
 
 export function CasesListView({ cases: initialCases }: CasesListViewProps) {
-  //const router = useRouter();
   const [caseList, setCaseList] = useState<Case[]>(initialCases);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<{ riskLevel: RiskLevel[], status: CaseStatus[] }>({
@@ -57,7 +56,8 @@ export function CasesListView({ cases: initialCases }: CasesListViewProps) {
   };
 
   const handleCreateCase = async (data: CaseCreationData) => {
-    const newCase = await createMockCase(data);
+    // CORRECTED: Call the new 'createCase' function
+    const newCase = await createCase(data);
     setCaseList(prevList => [newCase, ...prevList]);
     setIsModalOpen(false);
   };
@@ -122,7 +122,7 @@ export function CasesListView({ cases: initialCases }: CasesListViewProps) {
 
         <div className="rounded-xl border overflow-hidden bg-white dark:bg-slate-800 dark:border-slate-700">
           <table className="w-full text-sm text-left">
-            <thead>
+            <thead className='bg-gray-50 dark:bg-slate-900'>
               <tr>
                 <th className="p-4 font-semibold">Entity Name</th>
                 <th className="p-4 font-semibold">Case ID</th>

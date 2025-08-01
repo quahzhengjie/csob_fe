@@ -3,32 +3,34 @@
 // =================================================================================
 'use client';
 
-// REMOVED: No longer need useEffect
 import React, { useState } from 'react';
 import { ChevronDown, Download, Mail } from 'lucide-react';
-import type { Case, Party, Document, CaseDocumentLink, ScannerProfile } from '@/types/entities';
-import { generateLiveChecklist, type ChecklistDocument } from '../utils/checklist';
+import type { ScannerProfile } from '@/types/entities';
+import { type ChecklistDocument, type ChecklistSection } from '../utils/checklist';
 import { DocumentRequirement } from './DocumentRequirement';
+import { downloadDocument } from '@/lib/apiClient';
+
+// Define the scan response type
+interface ScanResponse {
+  documentId?: string;
+  status?: string;
+  message?: string;
+}
 
 interface DocumentChecklistProps {
-  caseData: Case;
-  parties: Party[];
-  documents: Document[];
-  documentLinks: CaseDocumentLink[];
+  checklist: ChecklistSection[];
   scannerProfiles: ScannerProfile[];
   onLinkDocument: (doc: ChecklistDocument) => void;
-  onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string }) => void;
-  onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => void;
+  onUploadDocument: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, file?: File }) => void;
+  onScan: (doc: ChecklistDocument, details: { expiryDate: string, comments: string, scanDetails: Record<string, unknown> }) => Promise<ScanResponse>;
   onShowHistory: (doc: ChecklistDocument) => void;
   onPreview: (doc: ChecklistDocument) => void;
 }
 
-export function DocumentChecklist({ caseData, parties, documents, documentLinks, scannerProfiles, onLinkDocument, onUploadDocument, onScan, onShowHistory, onPreview }: DocumentChecklistProps) {
-  const { checklist } = generateLiveChecklist(caseData, parties, documents, documentLinks);
+export function DocumentChecklist({ checklist, scannerProfiles, onLinkDocument, onUploadDocument, onScan, onShowHistory, onPreview }: DocumentChecklistProps) {
   const [selectedDocs, setSelectedDocs] = useState<ChecklistDocument[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  // CORRECTED: Replaced the useEffect with a lazy initializer function for useState.
-  // This function is guaranteed to run only once on the component's initial render.
   const [expandedSections, setExpandedSections] = useState(() => {
     const initialExpansionState: Record<string, boolean> = {};
     checklist.forEach(section => {
@@ -49,20 +51,73 @@ export function DocumentChecklist({ caseData, parties, documents, documentLinks,
     );
   };
 
-  const handleDownloadSelected = () => {
-    console.log("Downloading selected documents:", selectedDocs);
-    alert(`Downloading ${selectedDocs.length} selected documents (see console).`);
-    setSelectedDocs([]);
+  const handleDownloadSelected = async () => {
+    if (selectedDocs.length === 0) return;
+    
+    setIsDownloading(true);
+    try {
+      for (const doc of selectedDocs) {
+        if (doc.masterDocumentId && doc.status !== 'Missing') {
+          // masterDocumentId is now the version ID which should be numeric
+          const docId = parseInt(doc.masterDocumentId);
+          if (!isNaN(docId)) {
+            const blob = await downloadDocument(docId);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${doc.name}.${doc.mimeType === 'application/pdf' ? 'pdf' : 'jpg'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        }
+      }
+      setSelectedDocs([]);
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download some documents');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
-  const handleDownloadAll = () => {
+  const handleDownloadAll = async () => {
     const allAvailableDocs = checklist.flatMap(s => s.documents).filter(d => d.status === 'Verified' || d.status === 'Submitted');
-    console.log("Downloading all available documents:", allAvailableDocs);
-    alert(`Downloading all ${allAvailableDocs.length} available documents (see console).`);
+    
+    setIsDownloading(true);
+    try {
+      for (const doc of allAvailableDocs) {
+        if (doc.masterDocumentId) {
+          // masterDocumentId is now the version ID which should be numeric
+          const docId = parseInt(doc.masterDocumentId);
+          if (!isNaN(docId)) {
+            const blob = await downloadDocument(docId);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${doc.name}.${doc.mimeType === 'application/pdf' ? 'pdf' : 'jpg'}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Add a small delay between downloads to avoid overwhelming the browser
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download some documents');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleEmail = () => {
-    alert("This would open an email modal.");
+    // TODO: Implement email functionality
+    alert("Email functionality coming soon!");
   };
 
   return (
@@ -72,13 +127,19 @@ export function DocumentChecklist({ caseData, parties, documents, documentLinks,
         <div className="flex items-center gap-2">
             <button
                 onClick={handleDownloadSelected}
-                disabled={selectedDocs.length === 0}
+                disabled={selectedDocs.length === 0 || isDownloading}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <Download size={14} /> Download Selected ({selectedDocs.length})
+                <Download size={14} /> 
+                {isDownloading ? 'Downloading...' : `Download Selected (${selectedDocs.length})`}
             </button>
-            <button onClick={handleDownloadAll} className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-blue-600 hover:bg-blue-700">
-                <Download size={14} /> Download All
+            <button 
+                onClick={handleDownloadAll} 
+                disabled={isDownloading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+                <Download size={14} /> 
+                {isDownloading ? 'Downloading...' : 'Download All'}
             </button>
             <button onClick={handleEmail} className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-gray-700 hover:bg-gray-800">
                 <Mail size={14} /> Email
@@ -86,8 +147,8 @@ export function DocumentChecklist({ caseData, parties, documents, documentLinks,
         </div>
       </div>
       <div className="space-y-6">
-        {checklist.map((section) => (
-          <div key={section.category}>
+        {checklist.map((section, sectionIndex) => (
+          <div key={`${section.category}-${sectionIndex}`}>
             <button onClick={() => toggleSection(section.category)} className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700/50">
               <h3 className="text-md font-semibold text-slate-700 dark:text-slate-300">{section.category}</h3>
               <ChevronDown size={20} className={`text-slate-500 transition-transform duration-200 ${expandedSections[section.category] ? 'rotate-180' : ''}`} />
@@ -95,9 +156,9 @@ export function DocumentChecklist({ caseData, parties, documents, documentLinks,
             
             {expandedSections[section.category] && (
               <div className="mt-2 space-y-2 pl-4">
-                {section.documents.map((doc) => (
+                {section.documents.map((doc, docIndex) => (
                   <DocumentRequirement
-                    key={`${doc.ownerId}-${doc.name}`}
+                    key={`${doc.ownerId}-${doc.name}-${docIndex}`}
                     document={doc}
                     onLink={onLinkDocument}
                     onUpload={onUploadDocument}

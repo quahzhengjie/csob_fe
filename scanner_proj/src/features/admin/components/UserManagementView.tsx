@@ -9,7 +9,7 @@ import type { Role } from '@/types/enums';
 import type { User } from '@/types/entities';
 import { AddUserModal } from './AddUserModal';
 import { PermissionsManager } from './PermissionsManager';
-import { addNewUser, updateUserStatus } from '@/lib/apiClient';
+import { createUser, updateUserStatus } from '@/lib/apiClient';
 
 interface UserManagementViewProps {
     initialUsers: User[];
@@ -23,14 +23,28 @@ export function UserManagementView({ initialUsers, userRoles: initialRoles }: Us
     const [activeTab, setActiveTab] = useState<'users' | 'permissions'>('users');
 
     const handleAddUser = async (newUserData: Omit<User, 'userId' | 'isActive'>) => {
-        const newUser = await addNewUser(newUserData);
-        if (newUser) { setUsers(prev => [newUser, ...prev]); }
-        setIsAddModalOpen(false);
+        try {
+            const newUser = await createUser(newUserData);
+            if (newUser) { 
+                setUsers(prev => [newUser, ...prev]); 
+            }
+            setIsAddModalOpen(false);
+        } catch (error) {
+            console.error('Failed to create user:', error);
+            // Consider adding error handling here (e.g., a toast notification)
+        }
     };
 
     const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
-        const updatedUser = await updateUserStatus(userId, !currentStatus);
-        if (updatedUser) { setUsers(prev => prev.map(u => u.userId === userId ? updatedUser : u)); }
+        try {
+            const updatedUser = await updateUserStatus(userId, !currentStatus);
+            if (updatedUser) { 
+                setUsers(prev => prev.map(u => u.userId === userId ? updatedUser : u)); 
+            }
+        } catch (error) {
+            console.error('Failed to update user status:', error);
+            // Consider adding error handling here (e.g., a toast notification)
+        }
     };
 
     const handlePermissionChange = (roleName: string, permissionKey: string, value: boolean) => {
@@ -89,7 +103,6 @@ export function UserManagementView({ initialUsers, userRoles: initialRoles }: Us
                                     <th className="p-4 text-left font-semibold">Actions</th>
                                 </tr>
                             </thead>
-                            {/* This tbody includes the button with the correct onClick handler */}
                             <tbody>
                                 {users.map(user => (
                                     <tr key={user.userId} className="border-b border-gray-200 dark:border-slate-700 last:border-b-0">

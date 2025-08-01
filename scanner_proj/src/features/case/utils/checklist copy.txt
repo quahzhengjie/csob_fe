@@ -93,77 +93,66 @@ export const generateLiveChecklist = async (
     },
     ownerId: string,
     ownerName: string,
-    isEntityDoc: boolean, // Add flag to identify entity documents
   ): ChecklistDocument => {
     const { name } = templateDoc;
 
-    // For entity documents, we need to check documents owned by the case
-    const effectiveOwnerId = isEntityDoc ? onboardingCase.caseId : ownerId;
+    /* ① already linked to this case? */
+    const linkedMaster = allDocuments?.find?.((d) => {
+      const link = caseDocumentLinks?.find?.((l) => l.documentId === d.documentId);
+      return d.ownerId === ownerId && d.name === name && !!link;
+    });
 
-    /* ① Find the document */
-    const matchingDoc = allDocuments?.find((d) => 
-      d.ownerId === effectiveOwnerId && d.name === name
-    );
+    if (linkedMaster) {
+      const link = caseDocumentLinks.find(
+        (l) => l.documentId === linkedMaster.documentId,
+      )!;
+      const version =
+        linkedMaster.versions?.find((v) => v.id === link.versionId) ??
+        linkedMaster.versions?.[linkedMaster.versions.length - 1];
 
-    if (matchingDoc) {
-      // ✅ Find the current version based on isCurrentForCase
-      const currentVersion = matchingDoc.versions?.find(v => v.isCurrentForCase === true);
-      
-      // If no version is marked as current, fall back to the latest version
-      const versionToUse = currentVersion || matchingDoc.versions?.[matchingDoc.versions.length - 1];
-
-      if (versionToUse) {
-        // Check if this version is linked to the case
-        const link = caseDocumentLinks?.find(
-          (l) => l.documentId === matchingDoc.documentId && l.versionId === versionToUse.id
-        );
-
-        if (link) {
-          return {
-            ...templateDoc,
-            id: versionToUse.id,
-            name: templateDoc.name, // Keep the template name
-            status: link.status,
-            ownerId: isEntityDoc ? entity.customerId : ownerId, // Use customerId for display
-            ownerName,
-            masterDocumentId: versionToUse.id, // This should be the version ID for history modal
-            version: versionToUse.version,
-            uploadedDate: versionToUse.uploadedDate,
-            expiryDate: versionToUse.expiryDate,
-            mimeType: versionToUse.mimeType,
-            rejectionReason: versionToUse.rejectionReason,
-            allVersions: matchingDoc.versions,
-          };
-        }
-      }
-
-      // If not linked but has verified version, show as reusable
-      const verifiedVersion = matchingDoc.versions?.find(v => 
-        v.status === 'Verified' && v.isCurrentForCase === true
-      ) || matchingDoc.versions?.find(v => v.status === 'Verified');
-
-      if (verifiedVersion) {
-        return {
-          ...templateDoc,
-          id: verifiedVersion.id,
-          name: templateDoc.name, // Keep the template name
-          status: 'Missing',
-          ownerId: isEntityDoc ? entity.customerId : ownerId, // Use customerId for display
-          ownerName,
-          reusableDocument: { documentId: matchingDoc.documentId, versionId: verifiedVersion.id },
-          masterDocumentId: verifiedVersion.id, // This should be the version ID
-          allVersions: matchingDoc.versions,
-        };
-      }
+      return {
+        ...templateDoc,
+        ...version,
+        id: version?.id,
+        status: link.status,
+        ownerId,
+        ownerName,
+        masterDocumentId: version?.id, // Use the version ID for API calls
+        allVersions: linkedMaster.versions,
+      };
     }
 
-    /* ③ Nothing yet */
+    /* ② reusable verified copy? */
+    const reusable = allDocuments?.find?.(
+      (d) =>
+        d.ownerId === ownerId &&
+        d.name === name &&
+        d.versions?.some((v) => v.status === 'Verified'),
+    );
+
+    if (reusable) {
+      const latest = [...(reusable.versions || [])]
+        .filter((v) => v.status === 'Verified')
+        .sort((a, b) => b.version - a.version)[0];
+
+      return {
+        ...templateDoc,
+        id: latest?.id,
+        status: 'Missing',
+        ownerId,
+        ownerName,
+        reusableDocument: latest ? { documentId: reusable.documentId, versionId: latest.id } : null,
+        masterDocumentId: latest?.id, // Use the version ID for API calls
+        allVersions: reusable.versions,
+      };
+    }
+
+    /* ③ nothing yet */
     return {
       ...templateDoc,
       id: `${ownerId}-${name}`,
-      name: templateDoc.name, // Keep the template name
       status: 'Missing',
-      ownerId: isEntityDoc ? entity.customerId : ownerId, // Use customerId for display
+      ownerId,
       ownerName,
     };
   };
@@ -203,7 +192,7 @@ export const generateLiveChecklist = async (
   checklist.push({
     category: 'Entity Documents & Forms',
     documents: entityDocs.map((t) =>
-      findContext(t, onboardingCase.caseId, entity.entityName, true), // Pass true for entity docs, use caseId
+      findContext(t, entity.customerId, entity.entityName),
     ),
   });
 
@@ -243,7 +232,7 @@ export const generateLiveChecklist = async (
 
     checklist.push({
       category: `Documents for ${party.name}`,
-      documents: indDocs.map((t) => findContext(t, party.partyId, party.name, false)), // Pass false for party docs
+      documents: indDocs.map((t) => findContext(t, party.partyId, party.name)),
     });
   });
 

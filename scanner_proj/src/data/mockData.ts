@@ -11,7 +11,7 @@ export const mockUsers: User[] = [
     userId: 'USER-001',
     name: 'Admin User',
     email: 'admin@bank.com',
-    role: 'General Manager',
+    role: 'ROLE_MANAGER',  // Changed from 'General Manager'
     department: 'Management',
     isActive: true,
   },
@@ -19,7 +19,7 @@ export const mockUsers: User[] = [
     userId: 'USER-002',
     name: 'Sarah Approver',
     email: 'sarah.approver@bank.com',
-    role: 'Deposits Manager',
+    role: 'ROLE_PROCESSOR',  // Changed from 'Deposits Manager'
     department: 'Deposits',
     isActive: true,
   },
@@ -27,7 +27,7 @@ export const mockUsers: User[] = [
     userId: 'USER-003',
     name: 'John Processor',
     email: 'john.processor@bank.com',
-    role: 'Deposits',
+    role: 'ROLE_PROCESSOR',  // Changed from 'Deposits'
     department: 'Deposits',
     isActive: true,
   },
@@ -35,7 +35,7 @@ export const mockUsers: User[] = [
     userId: 'USER-004',
     name: 'Mike Viewer',
     email: 'mike.viewer@bank.com',
-    role: 'Viewer',
+    role: 'ROLE_VIEWER',  // Changed from 'Viewer'
     department: 'Audit',
     isActive: false,
   },
@@ -409,3 +409,4 @@ export const documentRequirementsTemplate: DocumentRequirements = {
     ]
   }
 };
+

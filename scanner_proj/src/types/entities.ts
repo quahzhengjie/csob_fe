@@ -74,20 +74,18 @@ export interface Document {
 export interface DocumentVersion {
   id: string;
   version: number;
-  // CORRECTED: Using specific union type
   status: DocStatus;
   uploadedDate: string;
   fileRef: string;
-  expiryDate?: string;
-  mimeType: string;
+  mimeType?: string;
   fileSize?: number;
-  fileHash?: string;
+  expiryDate?: string;
   uploadedBy?: string;
   verifiedBy?: string;
   verifiedDate?: string;
   rejectionReason?: string;
   comments?: string;
-  scanDetails?: Record<string, string>;
+  isCurrentForCase?: boolean;
 }
 
 
@@ -98,7 +96,6 @@ export interface CaseDocumentLink {
   caseId: string;
   documentId: string;
   versionId: string;
-  // CORRECTED: Using specific union type
   status: DocStatus;
   comments?: string;
 }

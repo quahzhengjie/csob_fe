@@ -4,7 +4,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Scan, FileText, Image, Check, AlertCircle, X, Plus, File } from 'lucide-react';
+import { Upload, Scan, FileText, Image as ImageIcon , Check, AlertCircle, X, Plus, File } from 'lucide-react';
 import type { ScannerProfile } from '@/types/entities';
 
 // Define the scan response type
@@ -37,30 +37,20 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Add debug logging for every render
-    console.log('🔄 AddVersionForm RENDER:', {
-        scannerProfilesLength: scannerProfiles.length,
-        selectedScanner,
-        scannerProfiles: scannerProfiles.map(s => ({ id: s.id, name: s.name }))
-    });
+
 
     // Update selected scanner when profiles change or on first load
     useEffect(() => {
-        console.log('🔄 useEffect triggered - Scanner profiles updated:', scannerProfiles);
-        console.log('🔄 Current selectedScanner state:', selectedScanner);
-        
+    
         // ONLY set the initial scanner if we don't have one selected yet AND profiles are available
         if (scannerProfiles.length > 0 && selectedScanner === '') {
-            console.log('✅ Setting initial scanner to:', scannerProfiles[0].id, scannerProfiles[0].name);
             setSelectedScanner(scannerProfiles[0].id.toString());
         } else if (selectedScanner !== '') {
             // Verify the currently selected scanner still exists in the profiles
             const currentScanner = scannerProfiles.find(s => s.id.toString() === selectedScanner.toString());
             if (!currentScanner && scannerProfiles.length > 0) {
-                console.log('⚠️ Previously selected scanner not found, resetting to first available');
                 setSelectedScanner(scannerProfiles[0].id.toString());
             } else if (currentScanner) {
-                console.log('✅ Current scanner selection is valid:', currentScanner.name);
             }
         }
     }, [scannerProfiles, selectedScanner]);
@@ -139,14 +129,14 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
 
     const getFileIcon = (file: File) => {
         if (file.type === 'application/pdf') return <FileText className="h-8 w-8 text-red-500" />;
-        // eslint-disable-next-line jsx-a11y/alt-text
-        if (file.type.startsWith('image/')) return <Image className="h-8 w-8 text-blue-500" />;
+        if (file.type.startsWith('image/')) return <ImageIcon className="h-8 w-8 text-blue-500" />;
         if (file.type.includes('word') || file.type.includes('document')) return <FileText className="h-8 w-8 text-blue-600" />;
         if (file.type.includes('excel') || file.type.includes('spreadsheet')) return <FileText className="h-8 w-8 text-green-600" />;
         if (file.type.includes('powerpoint') || file.type.includes('presentation')) return <FileText className="h-8 w-8 text-orange-600" />;
         if (file.type === 'text/plain' || file.type === 'text/csv') return <FileText className="h-8 w-8 text-gray-600" />;
         return <File className="h-8 w-8 text-gray-500" />;
     };
+    
 
     const handleSaveUpload = () => {
         if (!selectedFile) {
@@ -154,7 +144,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
             return;
         }
         
-        console.log('Saving upload with file:', selectedFile.name);
+
         
         onUpload({
             ...uploadDetails,
@@ -165,9 +155,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
 
     // This function triggers the scan immediately and saves to DB
     const handleTriggerScan = async () => {
-        console.log('=== SCAN BUTTON CLICKED ===');
-        console.log('🔥 QUICK DEBUG - Selected Scanner ID:', selectedScanner);
-        console.log('🔥 QUICK DEBUG - Available scanners:', scannerProfiles.map(s => ({id: s.id, name: s.name})));
+    
         
         if (!selectedScanner) {
             alert('Please select a scanner profile');
@@ -176,23 +164,14 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
 
         // Fix: Convert both to strings for comparison since HTML select values are always strings
         const scanner = scannerProfiles.find(s => s.id.toString() === selectedScanner.toString());
-        console.log('🔍 SCANNER LOOKUP:');
-        console.log('- Looking for ID:', selectedScanner);
-        console.log('- Found scanner object:', scanner);
-        console.log('- Scanner name should be:', scanner?.name);
-        console.log('- All available scanners:', scannerProfiles.map(s => ({ id: s.id, name: s.name })));
+
         
         if (!scanner) {
             alert('Invalid scanner selected');
             return;
         }
 
-        // Double-check the scanner name before proceeding
-        console.log('⚠️  CRITICAL CHECK:');
-        console.log('- scanner.name =', scanner.name);
-        console.log('- scanner.id =', scanner.id);
-        console.log('- selectedScanner state =', selectedScanner);
-
+    
         setScanState('scanning');
         
         try {
@@ -217,11 +196,6 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                 comments: uploadDetails.comments || ''
             };
 
-            console.log('=== SCAN DETAILS PREPARED ===');
-            console.log('🎯 Profile field value:', scanDetails.profile);
-            console.log('🎯 ProfileName field value:', scanDetails.profileName);
-            console.log('📋 Full scan details object:', JSON.stringify(scanDetails, null, 2));
-
             // Pass the scan details with expiry date and comments
             const result = await onScan({
                 expiryDate: uploadDetails.expiryDate,
@@ -229,8 +203,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                 scanDetails
             });
             
-            console.log('=== SCAN RESULT ===');
-            console.log('Scan completed successfully:', result);
+    
             
             // The scan was triggered successfully
             setScanState('scanned');
@@ -427,23 +400,15 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                                             Scanner Profile
                                         </label>
                                         <select
-                                            value={selectedScanner}
-                                            onChange={(e) => {
-                                                const newScannerId = e.target.value;
-                                                const newScanner = scannerProfiles.find(s => s.id.toString() === newScannerId);
-                                                
-                                                console.log('🔄 SCANNER SELECTION CHANGED:');
-                                                console.log('- New selected ID:', newScannerId);
-                                                console.log('- New scanner object:', newScanner);
-                                                console.log('- New scanner name:', newScanner?.name);
-                                                console.log('- Previous selected ID was:', selectedScanner);
-                                                
-                                                setSelectedScanner(newScannerId);
-                                            }}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg 
-                                                     bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100
-                                                     focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                        >
+                                           value={selectedScanner}
+                                           onChange={(e) => {
+                                               const newScannerId = e.target.value;
+                                               setSelectedScanner(newScannerId);
+                                           }}
+                                           className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg 
+                                                    bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100
+                                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                                           >
                                             {scannerProfiles.map(profile => (
                                                 <option key={profile.id} value={profile.id}>
                                                     {profile.name} ({profile.source} - {profile.colorMode})
@@ -481,8 +446,17 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                                                     onChange={(e) => setScanFormat(e.target.value as 'png')}
                                                     className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                                                 />
-                                                <Image size={16} className="text-blue-500" aria-hidden="true"/>
-                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">PNG</span>
+                                              <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+    <input
+        type="radio"
+        value="png"
+        checked={scanFormat === 'png'}
+        onChange={(e) => setScanFormat(e.target.value as 'png')}
+        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+    />
+    <ImageIcon size={16} className="text-blue-500" aria-hidden="true"/>
+    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">PNG</span>
+</label>
                                             </label>
                                         </div>
                                     </div>

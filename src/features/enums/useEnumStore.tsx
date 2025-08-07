@@ -22,7 +22,6 @@ export interface EnumState {
 }
 
 export const createEnumStore = (init: EnumState) => {
-  console.log('createEnumStore - Creating store with:', init);
   return createStore<EnumState>(() => ({ ...init }));
 };
 
@@ -35,8 +34,7 @@ export const EnumStoreProvider = ({
   children: ReactNode;
   initialState: EnumState;
 }) => {
-  console.log('EnumStoreProvider - Initial state:', initialState);
-  console.log('EnumStoreProvider - Roles keys:', Object.keys(initialState.roles || {}));
+ 
   
   const storeRef = useRef<StoreApi<EnumState> | null>(null);
   if (!storeRef.current) {
@@ -54,8 +52,6 @@ export const useEnumStore = <T,>(selector: (s: EnumState) => T): T => {
   const ctx = useContext(EnumStoreContext);
   if (!ctx) throw new Error('useEnumStore must be used within EnumStoreProvider');
   
-  const result = useStore(ctx, selector);
-  console.log('useEnumStore - Selected value:', result);
-  
+  const result = useStore(ctx, selector); 
   return result;
 };

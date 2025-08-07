@@ -68,7 +68,7 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
     addressCountry: 'Singapore',
     placeOfIncorporation: 'Singapore',
     riskLevel: 'Low',
-    status: 'Prospect',
+    status: 'KYC Review',
     contactPerson: '',
     contactEmail: '',
     contactPhone: '',

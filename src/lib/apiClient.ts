@@ -1,901 +1,3 @@
-// import type {
-//   EnumConfig,
-//   CaseStatus,
-//   RiskLevel,
-//   DocStatus,
-//   User,
-//   Party,
-//   Case,
-//   CaseCreationData,
-//   ActivityLog,
-//   CallReport,
-//   DocumentRequirements,
-//   Document,
-//   ScannerProfile,
-//   CaseDocumentLink,
-//   DocumentVersion,
-//   Role,
-//   TemplateDoc,
-// } from '@/types/entities';
-// import type { NewUserData } from '@/features/admin/components/AddUserModal';
-
-// interface BackendUser {
-//   userId: string;
-//   username: string;
-//   enabled: boolean;
-//   name: string;
-//   email: string;
-//   role: string;
-//   roleId: number;
-//   department?: string;
-//   roles?: string[];
-// }
-
-// interface DocumentDto {
-//   id: number;
-//   documentType: string;
-//   originalFilename: string;
-//   mimeType: string;
-//   sizeInBytes: number;
-//   expiryDate?: string;
-//   createdBy?: string;
-//   createdDate?: string;
-//   name: string;
-//   status: string;
-//   version: number;
-//   ownerType: string;
-//   ownerId: string;
-//   uploadedBy?: string;
-//   verifiedBy?: string;
-//   verifiedDate?: string;
-//   rejectionReason?: string;
-//   comments?: string;
-//   isCurrentForCase?: boolean;
-//   isAdHoc?: boolean;
-// }
-
-// interface RelatedPartyDto {
-//   id: number;
-//   partyId: string;
-//   name: string;
-//   relationshipType: string;
-//   ownershipPercentage?: number;
-// }
-
-// interface ScanTriggerResponse {
-//   documentId: string;
-//   status: string;
-//   message?: string;
-// }
-
-// // Export for use in other components
-// export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
-// let cachedDocumentRequirements: DocumentRequirements | null = null;
-
-// // ✅ DYNAMIC AUTH HEADERS - Updated for JWT
-// const getAuthHeaders = (): HeadersInit => {
-//   const headers: Record<string, string> = {
-//     'Content-Type': 'application/json',
-//   };
-
-//   if (typeof window !== 'undefined') {
-//     const token = localStorage.getItem('authToken');
-//     console.log('🔍 Client-side auth check:');
-//     console.log('- Token exists:', !!token);
-//     console.log('- Token preview:', token ? `${token.substring(0, 20)}...` : 'null');
-    
-//     if (token) {
-//       headers['Authorization'] = `Bearer ${token}`;
-//       console.log('✅ Authorization header set');
-//     } else {
-//       console.log('❌ No token found in localStorage');
-//     }
-//   } else {
-//     console.log('🖥️ Server-side rendering - no localStorage access');
-//   }
-
-//   console.log('📤 Final headers:', headers);
-//   return headers;
-// };
-
-// // Special headers for file uploads (no Content-Type)
-// const getAuthHeadersForUpload = (): HeadersInit => {
-//   const headers: Record<string, string> = {};
-
-//   if (typeof window !== 'undefined') {
-//     const token = localStorage.getItem('authToken');
-//     if (token) {
-//       headers['Authorization'] = `Bearer ${token}`;
-//     }
-//   }
-
-//   return headers;
-// };
-
-// const handleApiResponse = async <T>(response: Response): Promise<T> => {
-//   if (!response.ok) {
-//     // Handle 401 Unauthorized by redirecting to login
-//     if (response.status === 401 && typeof window !== 'undefined') {
-//       localStorage.removeItem('authToken');
-//       localStorage.removeItem('authUser');
-//       window.location.href = '/login';
-//       throw new Error('Authentication required');
-//     }
-    
-//     const errorText = await response.text().catch(() => '');
-//     console.error(`API Error: ${response.status} - ${errorText}`);
-//     throw new Error(`API call failed with status: ${response.status}`);
-//   }
-//   return response.json();
-// };
-
-// const mapBackendUserToFrontend = (backendUser: BackendUser): User => ({
-//     userId: backendUser.userId,
-//     name: backendUser.name,
-//     email: backendUser.email,
-//     role: backendUser.role,
-//     roleId: backendUser.roleId || 0,
-//     department: backendUser.department || '',
-//     isActive: backendUser.enabled !== undefined ? backendUser.enabled : true,
-// });
-
-// // ✅ USER FETCHING
-// export const getUsers = async (): Promise<User[]> => {
-//  try {
-//    const response = await fetch(`${API_BASE_URL}/users`, {
-//      headers: getAuthHeaders(),
-//      credentials: 'include'
-//    });
-//    const users = await handleApiResponse<BackendUser[]>(response);
-//    return users.map(mapBackendUserToFrontend);
-//  } catch (error) {
-//    console.error("Failed to fetch users:", error);
-//    throw error;
-//  }
-// };
-
-// // ✅ USER MANAGEMENT FUNCTIONS
-// export const createUser = async (userData: NewUserData): Promise<User> => {
-//  try {
-//    const response = await fetch(`${API_BASE_URL}/users`, {
-//      method: 'POST',
-//      headers: getAuthHeaders(),
-//      credentials: 'include',
-//      body: JSON.stringify({
-//        username: userData.email.split('@')[0],
-//        name: userData.name,
-//        email: userData.email,
-//        password: userData.password,
-//        roleId: userData.roleId,
-//        department: userData.department,
-//        enabled: true
-//      }),
-//    });
-//    const createdUser = await handleApiResponse<BackendUser>(response);
-//    return mapBackendUserToFrontend(createdUser);
-//  } catch (error) {
-//    console.error("Failed to create user:", error);
-//    throw error;
-//  }
-// };
-
-// export const updateUser = async (userId: string, userData: Partial<User> & { password?: string }): Promise<User> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(userData),
-//     });
-//     const updatedUser = await handleApiResponse<BackendUser>(response);
-//     return mapBackendUserToFrontend(updatedUser);
-//   } catch (error) {
-//     console.error("Failed to update user:", error);
-//     throw error;
-//   }
-//  };
-
-// export const updateUserStatus = async (userId: string, isEnabled: boolean): Promise<User> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/users/${userId}/status`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ enabled: isEnabled }),
-//     });
-//     const updatedUser = await handleApiResponse<BackendUser>(response);
-//     return mapBackendUserToFrontend(updatedUser);
-//   } catch (error) {
-//     console.error("Failed to update user status:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ CASE MANAGEMENT FUNCTIONS
-// export const getCases = async (): Promise<Case[]> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases`, {
-//       headers: getAuthHeaders(),
-//       credentials: 'include'
-//     });
-//     return await handleApiResponse<Case[]>(response);
-//   } catch (error) {
-//     console.error("Failed to fetch cases:", error);
-//     throw error;
-//   }
-// };
-
-// export const getCaseDetails = async (caseId: string) => {
-//   try {
-//     const headers = getAuthHeaders();
-
-//     const [caseResponse, partiesResponse, documentsResponse] = await Promise.all([
-//       fetch(`${API_BASE_URL}/cases/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/parties/case/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/documents/case/${caseId}`, { headers, credentials: 'include' }),
-//     ]);
-
-//     if (!caseResponse.ok) {
-//       return null;
-//     }
-
-//     const caseData = await handleApiResponse<Case>(caseResponse);
-//     const parties = partiesResponse.ok ? await handleApiResponse<Party[]>(partiesResponse) : [];
-//     const documentsDto = documentsResponse.ok ? await handleApiResponse<DocumentDto[]>(documentsResponse) : [];
-
-//     const documentsMap = new Map<string, Document>();
-//     const documentLinks: CaseDocumentLink[] = [];
-
-//     documentsDto.forEach(dto => {
-//       const sanitizedDocType = dto.documentType.replace(/[/\s]/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-//       const documentId = `DOC-${dto.ownerId}-${sanitizedDocType}`;
-
-//       let document = documentsMap.get(documentId);
-//       if (!document) {
-//         document = { 
-//           documentId, 
-//           ownerId: dto.ownerId, 
-//           name: dto.documentType, 
-//           versions: [],
-//           isAdHoc: dto.isAdHoc || false
-//         };
-//         documentsMap.set(documentId, document);
-//       }
-
-//       const version: DocumentVersion = {
-//         id: dto.id.toString(), version: dto.version, status: dto.status as DocStatus,
-//         uploadedDate: dto.createdDate || new Date().toISOString(), fileRef: `/api/documents/download/${dto.id}`,
-//         mimeType: dto.mimeType, fileSize: dto.sizeInBytes, expiryDate: dto.expiryDate,
-//         uploadedBy: dto.uploadedBy, verifiedBy: dto.verifiedBy, verifiedDate: dto.verifiedDate,
-//         rejectionReason: dto.rejectionReason, comments: dto.comments, isCurrentForCase: dto.isCurrentForCase || false,
-//       };
-//       document.versions.push(version);
-
-//       if (dto.isCurrentForCase || dto.status !== 'Missing') {
-//         documentLinks.push({
-//           linkId: `LNK-${caseId}-${dto.id}`, caseId, documentId, versionId: version.id,
-//           status: dto.status as DocStatus, comments: dto.comments,
-//         });
-//       }
-//     });
-
-//     documentsMap.forEach(doc => doc.versions.sort((a, b) => a.version - b.version));
-//     const documents = Array.from(documentsMap.values());
-
-//     const [scannerProfiles, allUsers, allParties] = await Promise.all([
-//       getScannerProfiles(),
-//       getUsers(),
-//       getParties(),
-//     ]);
-
-//     return { caseData, parties, documents, documentLinks, scannerProfiles, allUsers, allParties };
-//   } catch (error) {
-//     console.error(`Failed to fetch case details for ${caseId}:`, error);
-//     throw error;
-//   }
-// };
-
-// export const createCase = async (newCaseData: CaseCreationData): Promise<Case> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(newCaseData),
-//     });
-//     return await handleApiResponse<Case>(response);
-//   } catch (error) {
-//     console.error("Failed to create case:", error);
-//     throw error;
-//   }
-// };
-
-// export const assignCase = async (caseId: string, userId: string): Promise<Case> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/assign`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ userId }),
-//     });
-//     return await handleApiResponse<Case>(response);
-//   } catch (error) {
-//     console.error("Failed to assign case:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateCaseStatus = async (caseId: string, updates: { status: CaseStatus, riskLevel: RiskLevel }): Promise<Case> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/status`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(updates),
-//     });
-//     return await handleApiResponse<Case>(response);
-//   } catch (error) {
-//     console.error("Failed to update case status:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateEntityData = async (caseId: string, entityData: Case['entity']): Promise<Case> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/entity`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(entityData),
-//     });
-//     return await handleApiResponse<Case>(response);
-//   } catch (error) {
-//     console.error("Failed to update entity data:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ ACTIVITY & CALL REPORT FUNCTIONS
-// export const addActivityLog = async (caseId: string, activityData: Omit<ActivityLog, 'activityId' | 'timestamp'>): Promise<Case> => {
-//   try {
-//     await fetch(`${API_BASE_URL}/cases/${caseId}/activities`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ type: activityData.type, details: activityData.details }),
-//     });
-//     const details = await getCaseDetails(caseId);
-//     if (!details?.caseData) throw new Error('Case not found');
-//     return details.caseData;
-//   } catch (error) {
-//     console.error("Failed to add activity log:", error);
-//     throw error;
-//   }
-// };
-
-// export const addCallReport = async (caseId: string, reportData: Omit<CallReport, 'reportId'>): Promise<Case> => {
-//   try {
-//     await fetch(`${API_BASE_URL}/cases/${caseId}/reports`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(reportData),
-//     });
-//     const details = await getCaseDetails(caseId);
-//     if (!details?.caseData) throw new Error('Case not found');
-//     return details.caseData;
-//   } catch (error) {
-//     console.error("Failed to add call report:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateCallReport = async (caseId: string, reportId: string, reportData: Omit<CallReport, 'reportId'>): Promise<Case> => {
-//   try {
-//     const numericId = reportId.replace('CR-', '').replace(/^0+/, '');
-//     await fetch(`${API_BASE_URL}/cases/${caseId}/reports/${numericId}`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(reportData),
-//     });
-//     const details = await getCaseDetails(caseId);
-//     if (!details?.caseData) throw new Error('Case not found');
-//     return details.caseData;
-//   } catch (error) {
-//     console.error("Failed to update call report:", error);
-//     throw error;
-//   }
-// };
-
-// export const deleteCallReport = async (caseId: string, reportId: string, reason?: string): Promise<void> => {
-//   try {
-//     const numericId = reportId.replace('CR-', '').replace(/^0+/, '');
-//     const params = new URLSearchParams();
-//     if (reason) params.append('reason', reason);
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/reports/${numericId}?${params}`, {
-//       method: 'DELETE',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     if (!response.ok) throw new Error(`Failed to delete call report: ${response.status}`);
-//   } catch (error) {
-//     console.error("Failed to delete call report:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ ROLE MANAGEMENT FUNCTIONS
-// export const getRoles = async (): Promise<Record<string, Role>> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/roles`, {
-//       headers: getAuthHeaders(),
-//       credentials: 'include'
-//     });
-//     return await handleApiResponse<Record<string, Role>>(response);
-//   } catch (error) {
-//     console.error("Failed to fetch roles:", error);
-//     throw error;
-//   }
-// };
-
-// export const createRole = async (roleData: { name: string; label: string; permissions: Record<string, boolean> }): Promise<Role> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/roles`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(roleData),
-//     });
-//     return await handleApiResponse<Role>(response);
-//   } catch (error) {
-//     console.error("Failed to create role:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateRoleLabel = async (roleId: number, updates: { label: string }): Promise<Role> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
-//       method: 'PUT',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(updates),
-//     });
-//     return await handleApiResponse<Role>(response);
-//   } catch (error) {
-//     console.error("Failed to update role label:", error);
-//     throw error;
-//   }
-// };
-
-// export const deleteRole = async (roleId: number): Promise<void> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
-//       method: 'DELETE',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     if (!response.ok) throw new Error(`Failed to delete role: ${response.status}`);
-//   } catch (error) {
-//     console.error("Failed to delete role:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateRolePermissions = async (roleName: string, permissions: Record<string, boolean>): Promise<Role> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/roles/${roleName}/permissions`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ permissions }),
-//     });
-//     return await handleApiResponse<Role>(response);
-//   } catch (error) {
-//     console.error("Failed to update role permissions:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ PARTY MANAGEMENT FUNCTIONS
-// export const getParties = async (): Promise<Party[]> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/parties`, {
-//       headers: getAuthHeaders(),
-//       credentials: 'include'
-//     });
-//     return await handleApiResponse<Party[]>(response);
-//   } catch (error) {
-//     console.error("Failed to fetch parties:", error);
-//     throw error;
-//   }
-// };
-
-// export const getPartyDetails = async (partyId: string) => {
-//   try {
-//     const headers = getAuthHeaders();
-//     const [partyResponse, documentsResponse, scannerProfilesResponse] = await Promise.all([
-//       fetch(`${API_BASE_URL}/parties/${partyId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/documents/party/${partyId}`, { headers, credentials: 'include' }),
-//       getScannerProfiles(),
-//     ]);
-
-//     if (!partyResponse.ok) {
-//       return null;
-//     }
-
-//     const party = await handleApiResponse<Party>(partyResponse);
-//     const documentsDto = documentsResponse.ok ? await handleApiResponse<DocumentDto[]>(documentsResponse) : [];
-
-//     const documentsMap = new Map<string, Document>();
-//     documentsDto.forEach(dto => {
-//       const sanitizedDocType = dto.documentType.replace(/[/\s]/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-//       const documentId = `DOC-${dto.ownerId}-${sanitizedDocType}`;
-
-//       let document = documentsMap.get(documentId);
-//       if (!document) {
-//         document = { 
-//           documentId, 
-//           ownerId: dto.ownerId, 
-//           name: dto.documentType, 
-//           versions: [],
-//           isAdHoc: dto.isAdHoc || false
-//         };
-//         documentsMap.set(documentId, document);
-//       }
-
-//       const version: DocumentVersion = {
-//         id: dto.id.toString(), version: dto.version, status: dto.status as DocStatus,
-//         uploadedDate: dto.createdDate || new Date().toISOString(), fileRef: `/api/documents/download/${dto.id}`,
-//         mimeType: dto.mimeType, fileSize: dto.sizeInBytes, expiryDate: dto.expiryDate,
-//         uploadedBy: dto.uploadedBy, verifiedBy: dto.verifiedBy, verifiedDate: dto.verifiedDate,
-//         rejectionReason: dto.rejectionReason, comments: dto.comments, isCurrentForCase: dto.isCurrentForCase || false,
-//       };
-//       document.versions.push(version);
-//     });
-
-//     documentsMap.forEach(doc => doc.versions.sort((a, b) => a.version - b.version));
-//     const documents = Array.from(documentsMap.values());
-    
-//     const scannerProfiles = scannerProfilesResponse;
-
-//     return { party, documents, scannerProfiles };
-//   } catch (error) {
-//     console.error(`Failed to fetch party details for ${partyId}:`, error);
-//     throw error;
-//   }
-// };
-
-// export const createParty = async (partyData: Omit<Party, 'partyId'>): Promise<Party> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/parties`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(partyData),
-//     });
-//     return await handleApiResponse<Party>(response);
-//   } catch (error) {
-//     console.error("Failed to create party:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateParty = async (partyId: string, partyData: Partial<Party>): Promise<Party> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/parties/${partyId}`, {
-//       method: 'PUT',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(partyData),
-//     });
-//     return await handleApiResponse<Party>(response);
-//   } catch (error) {
-//     console.error("Failed to update party:", error);
-//     throw error;
-//   }
-// };
-
-// export const addRelatedParty = async (caseId: string, partyData: { partyId: string; name: string; relationshipType: string; ownershipPercentage?: number }): Promise<RelatedPartyDto> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/parties`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(partyData),
-//     });
-//     return await handleApiResponse<RelatedPartyDto>(response);
-//   } catch (error) {
-//     console.error("Failed to add related party:", error);
-//     throw error;
-//   }
-// };
-
-// export const removeRelatedParty = async (caseId: string, partyId: string, relationshipType: string): Promise<void> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/cases/${caseId}/parties/${partyId}?relationshipType=${encodeURIComponent(relationshipType)}`, {
-//       method: 'DELETE',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     if (!response.ok) throw new Error(`Failed to remove party: ${response.status}`);
-//   } catch (error) {
-//     console.error("Failed to remove related party:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ DOCUMENT MANAGEMENT FUNCTIONS
-// export const uploadDocument = async (
-//   ownerId: string, 
-//   ownerType: 'CASE' | 'PARTY', 
-//   documentType: string, 
-//   file: File, 
-//   metadata?: { 
-//     expiryDate?: string; 
-//     comments?: string;
-//     isAdHoc?: boolean;
-//   }
-// ): Promise<DocumentDto> => {
-//   try {
-//     console.log('=== uploadDocument called ===');
-//     console.log('ownerId:', ownerId);
-//     console.log('ownerType:', ownerType);
-//     console.log('documentType:', documentType);
-//     console.log('file:', file?.name);
-//     console.log('metadata:', metadata);
-
-//     const formData = new FormData();
-//     formData.append('documentType', documentType);
-//     formData.append('file', file);
-    
-//     // Only append if values exist
-//     if (metadata?.expiryDate) {
-//       formData.append('expiryDate', metadata.expiryDate);
-//     }
-//     if (metadata?.comments) {
-//       formData.append('comments', metadata.comments);
-//     }
-    
-//     // Check if isAdHoc is explicitly set (could be true or false)
-//     if (metadata && 'isAdHoc' in metadata && metadata.isAdHoc !== undefined) {
-//       formData.append('isAdHoc', String(metadata.isAdHoc));
-//       console.log('Added isAdHoc to formData:', metadata.isAdHoc);
-//     }
-
-//     const endpoint = ownerType === 'CASE'
-//       ? `${API_BASE_URL}/documents/upload/case/${ownerId}`
-//       : `${API_BASE_URL}/documents/upload/party/${ownerId}`;
-
-//     console.log('Endpoint:', endpoint);
-
-//     const response = await fetch(endpoint, {
-//       method: 'POST',
-//       headers: getAuthHeadersForUpload(),
-//       credentials: 'include',
-//       body: formData,
-//     });
-
-//     console.log('Response status:', response.status);
-    
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error('Upload failed. Status:', response.status);
-//       console.error('Error response:', errorText);
-//       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
-//     }
-    
-//     const result = await response.json();
-//     console.log('Upload successful, result:', result);
-//     return result;
-    
-//   } catch (error) {
-//     console.error("=== uploadDocument ERROR ===");
-//     console.error("Error:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateDocumentStatus = async (documentId: number, status: string, rejectionReason?: string): Promise<DocumentDto> => {
-//   try {
-//     const params = new URLSearchParams({ status });
-//     if (rejectionReason) params.append('rejectionReason', rejectionReason);
-//     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/status?${params}`, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     return await handleApiResponse<DocumentDto>(response);
-//   } catch (error) {
-//     console.error("Failed to update document status:", error);
-//     throw error;
-//   }
-// };
-
-// export const downloadDocument = async (documentId: number): Promise<Blob> => {
-//   try {
-//     const headers = getAuthHeadersForUpload(); // Use upload headers which only have Authorization
-//     const response = await fetch(`${API_BASE_URL}/documents/download/${documentId}`, {
-//       headers,
-//       credentials: 'include',
-//     });
-//     if (!response.ok) throw new Error(`Failed to download document: ${response.status}`);
-//     return await response.blob();
-//   } catch (error) {
-//     console.error("Failed to download document:", error);
-//     throw error;
-//   }
-// };
-
-// export const updateDocumentLink = async (caseId: string, documentId: string, versionId: string): Promise<CaseDocumentLink> => {
-//   try {
-//     const encodedDocumentId = encodeURIComponent(documentId);
-//     const url = `${API_BASE_URL}/cases/${caseId}/documents/${encodedDocumentId}/link`;
-//     const response = await fetch(url, {
-//       method: 'PATCH',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ versionId }),
-//     });
-//     return await handleApiResponse<CaseDocumentLink>(response);
-//   } catch (error) {
-//     console.error("Failed to update document link:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ SCANNER INTEGRATION
-// export const triggerScan = async (scanRequest: { profileName: string; ownerType: string; ownerId: string; documentType: string; format?: string; }): Promise<ScanTriggerResponse> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/scans/trigger`, {
-//       method: 'POST',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify(scanRequest),
-//     });
-//     return await handleApiResponse<ScanTriggerResponse>(response);
-//   } catch (error) {
-//     console.error("Failed to trigger scan:", error);
-//     throw error;
-//   }
-// };
-
-// export const getScannerProfiles = async (): Promise<ScannerProfile[]> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/scanner-profiles`, {
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     return await handleApiResponse<ScannerProfile[]>(response);
-//   } catch (error) {
-//     console.error("Failed to fetch scanner profiles:", error);
-//     throw error;
-//   }
-// };
-
-// // ✅ CONFIGURATION & TEMPLATE FUNCTIONS
-// export const getEnums = async (): Promise<EnumConfig> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/enums`);
-//     if (!response.ok) throw new Error(`Failed to fetch enums: ${response.status}`);
-//     return await response.json();
-//   } catch (error) {
-//     console.error("Failed to fetch enums - using fallback:", error);
-//     return {
-//       roles: {},
-//       enums: {
-//         caseStatus: [],
-//         riskLevel: [],
-//         docStatus: [],
-//         entityTypes: [],
-//       },
-//       documentRequirements: {
-//         individualTemplates: {},
-//         entityTemplates: {},
-//         bankFormTemplates: { corporateMandatory: [], corporateOptional: [], individualStakeholder: [] },
-//         riskBasedDocuments: {},
-//         entityRoleMapping: {}
-//       }
-//     };
-//   }
-// };
-
-// export const getDocumentRequirements = async (): Promise<DocumentRequirements> => {
-//   if (cachedDocumentRequirements) {
-//     return cachedDocumentRequirements;
-//   }
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/templates/document-requirements`, {
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//     });
-//     const data = await handleApiResponse<DocumentRequirements>(response);
-//     cachedDocumentRequirements = data;
-//     return data;
-//   } catch (error) {
-//     console.error('Error fetching document requirements:', error);
-//     return {
-//       individualTemplates: {},
-//       entityTemplates: {},
-//       bankFormTemplates: { corporateMandatory: [], corporateOptional: [], individualStakeholder: [] },
-//       riskBasedDocuments: {},
-//       entityRoleMapping: {}
-//     };
-//   }
-// };
-
-// export const updateTemplate = async (
-//   categoryKey: string,
-//   typeKey: string,
-//   documents: TemplateDoc[]
-// ): Promise<DocumentRequirements> => {
-//   try {
-//     const response = await fetch(`${API_BASE_URL}/templates/document-requirements`, {
-//       method: 'PUT',
-//       headers: getAuthHeaders(),
-//       credentials: 'include',
-//       body: JSON.stringify({ categoryKey, typeKey, documents }),
-//     });
-//     const updatedTemplates = await handleApiResponse<DocumentRequirements>(response);
-    
-//     clearDocumentRequirementsCache();
-//     cachedDocumentRequirements = updatedTemplates;
-    
-//     return updatedTemplates;
-//   } catch (error) {
-//     console.error("Failed to update template:", error);
-//     throw error;
-//   }
-// };
-
-// /**
-//  * @deprecated This function is now obsolete. Use updateTemplate instead.
-//  */
-// export const updateDocumentRequirements = async (): Promise<DocumentRequirements | null> => {
-//   console.warn("DEPRECATED: updateDocumentRequirements is called. Use updateTemplate instead.");
-//   throw new Error("This method is deprecated. Use the new updateTemplate function.");
-// };
-
-// export function clearDocumentRequirementsCache() {
-//   cachedDocumentRequirements = null;
-// }
-
-// export const getCaseDocumentLinks = async (caseId: string): Promise<CaseDocumentLink[]> => {
-//   try {
-//     const documentsResponse = await fetch(`${API_BASE_URL}/documents/case/${caseId}`, { 
-//       headers: getAuthHeaders(), 
-//       credentials: 'include' 
-//     });
-    
-//     if (!documentsResponse.ok) return [];
-
-//     const documentsDto = await handleApiResponse<DocumentDto[]>(documentsResponse);
-//     const documentLinks: CaseDocumentLink[] = [];
-
-//     documentsDto.forEach(dto => {
-//       // Only include documents that are actively linked (not just 'Missing')
-//       if (dto.isCurrentForCase) {
-//         const sanitizedDocType = dto.documentType.replace(/[/\s]/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-//         const documentId = `DOC-${dto.ownerId}-${sanitizedDocType}`;
-
-//         documentLinks.push({
-//           linkId: `LNK-${caseId}-${dto.id}`,
-//           caseId: caseId,
-//           documentId: documentId,
-//           versionId: dto.id.toString(),
-//           status: dto.status as DocStatus,
-//         });
-//       }
-//     });
-    
-//     return documentLinks;
-//   } catch (error) {
-//     console.error(`Failed to fetch document links for case ${caseId}:`, error);
-//     return [];
-//   }
-// };
-
 import type {
   EnumConfig,
   CaseStatus,
@@ -1050,15 +152,20 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
   }
 };
 
-const mapBackendUserToFrontend = (backendUser: BackendUser): User => ({
-    userId: backendUser.userId,
-    name: backendUser.name,
-    email: backendUser.email,
-    role: backendUser.role,
-    roleId: backendUser.roleId || 0,
-    department: backendUser.department || '',
-    isActive: backendUser.enabled !== undefined ? backendUser.enabled : true,
-});
+const mapBackendUserToFrontend = (backendUser: BackendUser): User => {
+  console.log('Mapping backend user:', backendUser); // Debug log to check what's coming from backend
+  
+  return {
+      userId: backendUser.userId,
+      username: backendUser.username || '', // Add username mapping with fallback
+      name: backendUser.name,
+      email: backendUser.email,
+      role: backendUser.role,
+      roleId: backendUser.roleId || 0,
+      department: backendUser.department || '',
+      isActive: backendUser.enabled !== undefined ? backendUser.enabled : true,
+  };
+};
 
 // ✅ USER FETCHING
 export const getUsers = async (): Promise<User[]> => {
@@ -1082,23 +189,18 @@ export const getUsers = async (): Promise<User[]> => {
  */
 export const getBasicUsers = async (): Promise<{ userId: string; name: string; department?: string }[]> => {
   try {
-    console.log('🚀 Fetching basic users...');
     const response = await fetch(`${API_BASE_URL}/users/basic`, {
       headers: await getAuthHeaders(),
       credentials: 'include'
     });
     
     if (!response.ok) {
-      console.error('Failed to fetch basic users:', response.status);
-      // Return empty array instead of throwing - graceful degradation
       return [];
     }
     
     const users = await handleApiResponse<{ userId: string; name: string; department?: string }[]>(response);
-    console.log('✅ Successfully fetched', users.length, 'basic users');
     return users;
-  } catch (error) {
-    console.error("Failed to fetch basic users:", error);
+  } catch {
     // Return empty array for graceful degradation
     return [];
   }
@@ -1174,202 +276,6 @@ export const getCases = async (): Promise<Case[]> => {
     throw error;
   }
 };
-
-// export const getCaseDetails = async (caseId: string): Promise<{
-//   caseData: Case;
-//   parties: Party[];
-//   documents: Document[];
-//   documentLinks: CaseDocumentLink[];
-//   scannerProfiles: ScannerProfile[];
-//   allUsers: { userId: string; name: string }[];
-//   allParties: Party[];
-// } | null> => {
-//   try {
-//     const headers = await getAuthHeaders();
-
-//     const [caseResponse, partiesResponse, documentsResponse] = await Promise.all([
-//       fetch(`${API_BASE_URL}/cases/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/parties/case/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/documents/case/${caseId}`, { headers, credentials: 'include' }),
-//     ]);
-
-//     if (!caseResponse.ok) {
-//       return null;
-//     }
-
-//     const caseData = await handleApiResponse<Case>(caseResponse);
-//     const parties = partiesResponse.ok ? await handleApiResponse<Party[]>(partiesResponse) : [];
-//     const documentsDto = documentsResponse.ok ? await handleApiResponse<DocumentDto[]>(documentsResponse) : [];
-
-//     const documentsMap = new Map<string, Document>();
-//     const documentLinks: CaseDocumentLink[] = [];
-
-//     documentsDto.forEach(dto => {
-//       const sanitizedDocType = dto.documentType.replace(/[/\s]/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-//       const documentId = `DOC-${dto.ownerId}-${sanitizedDocType}`;
-
-//       let document = documentsMap.get(documentId);
-//       if (!document) {
-//         document = { 
-//           documentId, 
-//           ownerId: dto.ownerId, 
-//           name: dto.documentType, 
-//           versions: [],
-//           isAdHoc: dto.isAdHoc || false
-//         };
-//         documentsMap.set(documentId, document);
-//       }
-
-//       const version: DocumentVersion = {
-//         id: dto.id.toString(), version: dto.version, status: dto.status as DocStatus,
-//         uploadedDate: dto.createdDate || new Date().toISOString(), fileRef: `/api/documents/download/${dto.id}`,
-//         mimeType: dto.mimeType, fileSize: dto.sizeInBytes, expiryDate: dto.expiryDate,
-//         uploadedBy: dto.uploadedBy, verifiedBy: dto.verifiedBy, verifiedDate: dto.verifiedDate,
-//         rejectionReason: dto.rejectionReason, comments: dto.comments, isCurrentForCase: dto.isCurrentForCase || false,
-//       };
-//       document.versions.push(version);
-
-//       if (dto.isCurrentForCase || dto.status !== 'Missing') {
-//         documentLinks.push({
-//           linkId: `LNK-${caseId}-${dto.id}`, caseId, documentId, versionId: version.id,
-//           status: dto.status as DocStatus, comments: dto.comments,
-//         });
-//       }
-//     });
-
-//     documentsMap.forEach(doc => doc.versions.sort((a, b) => a.version - b.version));
-//     const documents = Array.from(documentsMap.values());
-
-//     // Fetch other data with the new basic users endpoint
-//     const [scannerProfiles, allUsers, allParties] = await Promise.all([
-//       getScannerProfiles(),
-//       getBasicUsers(),  // <-- Changed from getUsers() to getBasicUsers()
-//       getParties(),
-//     ]);
-
-//     return { caseData, parties, documents, documentLinks, scannerProfiles, allUsers, allParties };
-//   } catch (error) {
-//     console.error(`Failed to fetch case details for ${caseId}:`, error);
-//     throw error;
-//   }
-// };
-// Updated getCaseDetails function in apiClient.ts
-
-// export const getCaseDetails = async (caseId: string): Promise<{
-//   caseData: Case;
-//   parties: Party[];
-//   documents: Document[];
-//   documentLinks: CaseDocumentLink[];
-//   scannerProfiles: ScannerProfile[];
-//   allUsers: { userId: string; name: string }[];
-//   allParties: Party[];
-// } | null> => {
-//   try {
-//     const headers = await getAuthHeaders();
-
-//     const [caseResponse, partiesResponse, documentsResponse] = await Promise.all([
-//       fetch(`${API_BASE_URL}/cases/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/parties/case/${caseId}`, { headers, credentials: 'include' }),
-//       fetch(`${API_BASE_URL}/documents/case/${caseId}`, { headers, credentials: 'include' }),
-//     ]);
-
-//     if (!caseResponse.ok) {
-//       return null;
-//     }
-
-//     const caseData = await handleApiResponse<Case>(caseResponse);
-//     const parties = partiesResponse.ok ? await handleApiResponse<Party[]>(partiesResponse) : [];
-//     const documentsDto = documentsResponse.ok ? await handleApiResponse<DocumentDto[]>(documentsResponse) : [];
-
-//     // Transform DocumentDto to Document with UserInfo
-//     const documents: Document[] = documentsDto.map(dto => ({
-//       id: dto.id,
-//       name: dto.name || dto.documentType, // Use name or fall back to documentType
-//       documentType: dto.documentType,
-//       originalFilename: dto.originalFilename || '',
-//       mimeType: dto.mimeType || 'application/pdf',
-//       sizeInBytes: dto.sizeInBytes || 0,
-//       status: dto.status as DocStatus,
-//       version: dto.version,
-//       ownerType: dto.ownerType as 'CASE' | 'PARTY',
-//       ownerId: dto.ownerId,
-      
-//       // Transform user attribution - check if the DTO has the new structure
-//       uploadedBy: dto.uploadedBy ? (
-//         typeof dto.uploadedBy === 'object' ? dto.uploadedBy : {
-//           userId: 'UNKNOWN',
-//           username: dto.uploadedBy,
-//           name: dto.uploadedBy,
-//           department: ''
-//         }
-//       ) : null,
-      
-//       uploadedDate: dto.uploadedDate || dto.createdDate || new Date().toISOString(),
-      
-//       verifiedBy: dto.verifiedBy ? (
-//         typeof dto.verifiedBy === 'object' ? dto.verifiedBy : {
-//           userId: 'UNKNOWN',
-//           username: dto.verifiedBy,
-//           name: dto.verifiedBy,
-//           department: ''
-//         }
-//       ) : null,
-      
-//       verifiedDate: dto.verifiedDate || null,
-      
-//       rejectionReason: dto.rejectionReason || null,
-//       expiryDate: dto.expiryDate || null,
-//       comments: dto.comments || null,
-//       isCurrentForCase: dto.isCurrentForCase || false,
-//       isAdHoc: dto.isAdHoc || false
-//     }));
-
-//     // Generate document links from current documents
-//     const documentLinks: CaseDocumentLink[] = documents
-//       .filter(doc => doc.isCurrentForCase || doc.status !== 'Missing')
-//       .map(doc => {
-//         const sanitizedDocType = doc.documentType.replace(/[/\s]/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-//         const documentId = `DOC-${doc.ownerId}-${sanitizedDocType}`;
-        
-//         return {
-//           linkId: `LNK-${caseId}-${doc.id}`,
-//           caseId,
-//           documentId,
-//           versionId: doc.id.toString(),
-//           status: doc.status,
-//           comments: doc.comments || undefined
-//         };
-//       });
-
-//     // Fetch additional data
-//     const [scannerProfiles, allUsers, allParties] = await Promise.all([
-//       getScannerProfiles(),
-//       getUsers(),
-//       getParties(),
-//     ]);
-
-//     console.log('getCaseDetails returning:', {
-//       documentsCount: documents.length,
-//       documentLinksCount: documentLinks.length,
-//       sampleDocument: documents[0]
-//     });
-
-//     return { 
-//       caseData, 
-//       parties, 
-//       documents, // Now returns flat documents array
-//       documentLinks, 
-//       scannerProfiles, 
-//       allUsers, 
-//       allParties 
-//     };
-//   } catch (error) {
-//     console.error(`Failed to fetch case details for ${caseId}:`, error);
-//     throw error;
-//   }
-// };
-
-// Updated getCaseDetails function with better error handling
 
 export const getCaseDetails = async (caseId: string): Promise<{
   caseData: Case;
@@ -1504,17 +410,9 @@ export const getCaseDetails = async (caseId: string): Promise<{
         getBasicUsers().catch(() => []),
         getParties().catch(() => []),
       ]);
-    } catch (err) {
-      console.error('Failed to fetch additional data:', err);
+    } catch{
     }
 
-    console.log('getCaseDetails returning:', {
-      caseId,
-      documentsCount: documents.length,
-      documentLinksCount: documentLinks.length,
-      partiesCount: parties.length,
-      hasDocumentError: documentsResponse ? !documentsResponse.ok : true
-    });
 
     return { 
       caseData, 
@@ -1598,7 +496,7 @@ export const addActivityLog = async (caseId: string, activityData: Omit<Activity
       method: 'POST',
       headers: await getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify({ type: activityData.type, details: activityData.details }),
+      body: JSON.stringify({ type: activityData.type, details: activityData.details,  performedBy: activityData.performedBy }),
     });
     const details = await getCaseDetails(caseId);
     if (!details?.caseData) throw new Error('Case not found');
@@ -1819,12 +717,7 @@ export const getPartyDetails = async (partyId: string) => {
           isCurrentForCase: dto.isCurrentForCase || false,
           isAdHoc: dto.isAdHoc || false
         }));
-        
-        console.log('Transformed party documents:', {
-          partyId,
-          documentsCount: documents.length,
-          sampleDoc: documents[0]
-        });
+
       } catch (err) {
         console.error('Failed to parse party documents:', err);
       }
@@ -2058,7 +951,6 @@ export const getEnums = async (): Promise<EnumConfig> => {
 
 export const getDocumentRequirements = async (): Promise<DocumentRequirements> => {
   if (cachedDocumentRequirements) {
-    console.log('📦 Using cached document requirements');
     return cachedDocumentRequirements;
   }
   try {
@@ -2068,22 +960,7 @@ export const getDocumentRequirements = async (): Promise<DocumentRequirements> =
     });
     const data = await handleApiResponse<DocumentRequirements>(response);
     
-    // ADD DETAILED LOGGING HERE
-    console.log('🔍 Document Requirements API Response:', {
-      fullResponse: data,
-      individualTemplates: data.individualTemplates,
-      individualTemplateKeys: Object.keys(data.individualTemplates || {}),
-      singaporeanPR: data.individualTemplates?.['Singaporean/PR'],
-      foreigner: data.individualTemplates?.['Foreigner'],
-      entityTemplates: Object.keys(data.entityTemplates || {}),
-      bankFormTemplates: data.bankFormTemplates,
-      riskBasedDocuments: data.riskBasedDocuments,
-      entityRoleMapping: data.entityRoleMapping
-    });
-    
-    // Log the structure in a formatted way
-    console.log('📋 Document Requirements Structure:');
-    console.log(JSON.stringify(data, null, 2));
+  
     
     cachedDocumentRequirements = data;
     return data;
@@ -2312,6 +1189,77 @@ export const searchCases = async (params: CaseSearchParams): Promise<CasesPageRe
     return await handleApiResponse<CasesPageResponse>(response);
   } catch (error) {
     console.error("Failed to search cases:", error);
+    throw error;
+  }
+};
+
+// =================================================================================
+// Add to FILE: src/lib/apiClient.ts
+// =================================================================================
+
+// ✅ SCANNER PROFILE FUNCTIONS
+
+/**
+ * Create a new scanner profile
+ * Requires admin:manage-templates permission
+ */
+export const createScannerProfile = async (
+  profile: Omit<ScannerProfile, 'id'>
+): Promise<ScannerProfile> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/scanner-profiles`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(profile),
+    });
+    return await handleApiResponse<ScannerProfile>(response);
+  } catch (error) {
+    console.error("Failed to create scanner profile:", error);
+    throw error;
+  }
+};
+
+/**
+ * Delete a scanner profile
+ * Requires admin:manage-templates permission
+ */
+export const deleteScannerProfile = async (id: string): Promise<void> => {  // Changed from number to string
+  try {
+    const response = await fetch(`${API_BASE_URL}/scanner-profiles/${id}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to delete scanner profile: ${response.status} - ${errorText}`);
+    }
+  } catch (error) {
+    console.error("Failed to delete scanner profile:", error);
+    throw error;
+  }
+};
+
+/**
+ * Update a scanner profile (optional - for future use)
+ * Requires admin:manage-templates permission
+ */
+export const updateScannerProfile = async (
+  id: string,  // Changed from number to string
+  updates: Partial<Omit<ScannerProfile, 'id'>>
+): Promise<ScannerProfile> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/scanner-profiles/${id}`, {
+      method: 'PUT',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(updates),
+    });
+    return await handleApiResponse<ScannerProfile>(response);
+  } catch (error) {
+    console.error("Failed to update scanner profile:", error);
     throw error;
   }
 };

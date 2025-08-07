@@ -51,26 +51,22 @@ export function CreditDetailsView({
     startIndex: 0 
   });
 
-  // Define the required credit documents
-  const creditDocumentTemplates = [
-    { name: 'Master Credit Agreement', required: true },
-    { name: 'Financial Statements', required: true },
-    { name: 'Credit Assessment Report', required: false },
-    { name: 'Collateral Documentation', required: false }
-  ];
-
   // Generate the checklist sections with actual document status
   const creditChecklist: ChecklistSection[] = useMemo(() => {
-    console.log('Generating credit checklist with documents:', documents);
-    
+    // MOVED INSIDE USEMEMO - This is the fix for the dependency warning
+    const creditDocumentTemplates = [
+      { name: 'Master Credit Agreement', required: true },
+      { name: 'Financial Statements', required: true },
+      { name: 'Credit Assessment Report', required: false },
+      { name: 'Collateral Documentation', required: false }
+    ];
+  
     const creditDocs = creditDocumentTemplates.map(template => {
       // Find all documents of this type for the case
       const documentsOfType = documents.filter(d => 
         d.documentType === template.name && 
         d.ownerId === caseData.caseId
       );
-
-      console.log(`Found ${documentsOfType.length} documents for ${template.name}`);
 
       // Sort by version descending
       const sortedDocs = [...documentsOfType].sort((a, b) => b.version - a.version);
@@ -79,11 +75,12 @@ export function CreditDetailsView({
       const currentDoc = sortedDocs.find(d => d.isCurrentForCase) || sortedDocs[0];
 
       if (currentDoc) {
-        console.log(`Using document version ${currentDoc.version} for ${template.name}`);
+    
         
         // Transform to ChecklistDocument format
         return {
           id: currentDoc.id.toString(),
+          documentId: currentDoc.id,
           name: template.name,
           required: template.required,
           status: currentDoc.status,
@@ -95,12 +92,8 @@ export function CreditDetailsView({
           mimeType: currentDoc.mimeType,
           rejectionReason: currentDoc.rejectionReason || undefined,
           comments: currentDoc.comments || undefined,
-          uploadedBy: typeof currentDoc.uploadedBy === 'object' 
-            ? currentDoc.uploadedBy?.name 
-            : currentDoc.uploadedBy || undefined,
-          verifiedBy: typeof currentDoc.verifiedBy === 'object'
-            ? currentDoc.verifiedBy?.name
-            : currentDoc.verifiedBy || undefined,
+          uploadedBy: currentDoc.uploadedBy,
+          verifiedBy: currentDoc.verifiedBy,
           verifiedDate: currentDoc.verifiedDate || undefined,
           // Store all versions for this document type for history
           allVersions: sortedDocs
@@ -123,7 +116,7 @@ export function CreditDetailsView({
       category: 'Credit Documents',  // Required by ChecklistSection type
       documents: creditDocs
     }];
-  }, [documents, caseData, creditDocumentTemplates]);
+  }, [documents, caseData]); // Removed creditDocumentTemplates from dependencies
 
   // Get all credit documents that can be previewed (not missing)
   const allCreditDocs = useMemo(() => 

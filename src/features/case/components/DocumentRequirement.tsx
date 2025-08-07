@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { FileText, Link as LinkIcon, History, Plus, Info, MessageSquare, AlertCircle, Clock, Calendar } from 'lucide-react';
 import { DocStatusBadge } from '@/components/common/DocStatusBadge';
 import type { ChecklistDocument } from '../utils/checklist';
-//import { WithPermission } from '@/features/rbac/WithPermission';
+import { WithPermission } from '@/features/rbac/WithPermission';
 import { AddVersionForm } from './AddVersionForm';
 import type { ScannerProfile } from '@/types/entities';
 
@@ -199,15 +199,17 @@ export function DocumentRequirement({
             </div>
           )}
 
-          {document.allVersions && document.allVersions.length > 1 && (
-            <button
-              onClick={() => onShowHistory(document)}
-              title="View version history"
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              <History size={16} />
-            </button>
-          )}
+<WithPermission permission="document:verify">
+  {document.allVersions && (
+    <button
+      onClick={() => onShowHistory(document)}
+      title="View version history"
+      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+    >
+      <History size={16} />
+    </button>
+  )}
+</WithPermission>
 
           {/* FIX: Removed WithPermission wrapper for debugging */}
           <>

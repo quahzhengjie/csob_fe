@@ -1,7 +1,3 @@
-// =================================================================================
-// FILE: src/features/case/components/CaseDetailView.tsx
-// =================================================================================
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -12,6 +8,7 @@ import { assignCase, updateCaseStatus, addActivityLog, updateEntityData, addCall
 import { RiskBadge } from '@/components/common/RiskBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { WithPermission } from '@/features/rbac/WithPermission';
+import { useAuth } from '@/context/AuthContext'; // CORRECTED IMPORT
 import { generateLiveChecklist, type ChecklistDocument, type ChecklistSection } from '../utils/checklist';
 import { determineExceptionStatus, getExceptionReason } from '../utils/exceptionRules';
 import { DocumentChecklist } from './DocumentChecklist';
@@ -28,7 +25,6 @@ import { EntityProfileView } from './EntityProfileView';
 import { CreditDetailsView } from './CreditDetailsView';
 import { CallReportsView } from './CallReportsView';
 import { AdHocDocumentsView } from './AdHocDocumentsView';
-import { AccountDocumentChecklist } from './AccountDocumentChecklist';
 
 interface CaseDetailViewProps {
   details: {
@@ -55,6 +51,9 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
   const [previewState, setPreviewState] = useState<{ isOpen: boolean; startIndex: number }>({ isOpen: false, startIndex: 0 });
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // GET THE CURRENT USER
+  const { user } = useAuth();
 
   // State for async checklist data
   const [checklistData, setChecklistData] = useState<{
@@ -95,8 +94,18 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     checklistData.checklist.flatMap(section => section.documents).filter(doc => doc.status !== 'Missing'),
   [checklistData.checklist]);
 
+  // UPDATED FUNCTION - Uses actual logged-in user with debug logging
   const logAndUpdateState = async (type: string, logDetails: string) => {
-    const updatedCase = await addActivityLog(caseData.caseId, { type, details: logDetails, performedBy: 'USER-001' });
+
+    // Use the actual user ID, fallback to username, or 'SYSTEM' if neither available
+    const performedBy = user?.userId || user?.username || 'SYSTEM';
+    
+    const updatedCase = await addActivityLog(caseData.caseId, { 
+      type, 
+      details: logDetails, 
+      performedBy 
+    });
+    
     if (updatedCase) {
         setDetails(prev => ({ ...prev, caseData: updatedCase }));
     }
@@ -300,7 +309,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
       await logAndUpdateState('document_made_current', `Updated document version to v${document.version}`);
       alert('Document version updated successfully!');
     } catch (error) {
-      alert('Failed to update document version');
+      alert(`Failed to approve document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
   
@@ -452,7 +461,6 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
         users={allUsers}
         currentAssigneeId={caseData.assignedTo}
       />
-
       <UpdateCaseModal
         isOpen={isUpdateModalOpen}
         onClose={() => setIsUpdateModalOpen(false)}
@@ -538,24 +546,6 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
                                 <div className="text-center py-12">Loading checklist...</div>
                             ) : (
                                 <DocumentChecklist
-                                  checklist={checklistData.checklist}
-                                  scannerProfiles={scannerProfiles}
-                                  {...docHandlerProps}
-                                />
-                            )}
-                        </div>
-                    </div>
-                )}
-                {activeTab === 'account' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div className="lg:col-span-1 space-y-6">
-                            <PartyList caseData={caseData} parties={parties} onAddParty={() => setIsPartyModalOpen(true)} />
-                        </div>
-                        <div className="lg:col-span-2">
-                            {isLoadingChecklist ? (
-                                <div className="text-center py-12">Loading checklist...</div>
-                            ) : (
-                                <AccountDocumentChecklist
                                   checklist={checklistData.checklist}
                                   scannerProfiles={scannerProfiles}
                                   {...docHandlerProps}

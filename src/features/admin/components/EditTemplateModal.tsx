@@ -123,7 +123,7 @@ export default function EditTemplateModal({
         setErrors(newErrors);
     };
 
-    const handleUpdateDocument = (categoryIndex: number, docIndex: number, field: keyof TemplateDoc, value: any) => {
+    const handleUpdateDocument = (categoryIndex: number, docIndex: number, field: keyof TemplateDoc, value: string | boolean | number | undefined) => {
         const newSections = [...categorySections];
         newSections[categoryIndex].documents[docIndex] = {
             ...newSections[categoryIndex].documents[docIndex],

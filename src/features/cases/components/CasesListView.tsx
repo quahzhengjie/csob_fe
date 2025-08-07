@@ -51,10 +51,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 // --- Utility Functions ---
 const exportToCSV = (cases: Case[], filename: string = 'cases-export') => {
-  const headers = ['Entity Name', 'Case ID', 'Risk Level', 'Status', 'Created Date'];
+  const headers = ['Entity Name', 'Basic Number', 'Case ID', 'Risk Level', 'Status', 'Created Date'];
   
   const rows = cases.map(c => [
     c.entity.entityName,
+    c.entity.basicNumber || 'N/A',
     c.caseId,
     c.riskLevel,
     c.status,
@@ -185,7 +186,7 @@ const CaseFilters = ({
             <input 
               id="search-cases"
               type="text" 
-              placeholder="Search by name or case ID..." 
+              placeholder="Search by name, case ID, or basic number..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)} 
               className="w-full pl-10 pr-10 py-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
@@ -251,6 +252,7 @@ const CaseRowSkeleton = () => (
     <tr className="animate-pulse">
         <td className="p-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div></td>
         <td className="p-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></td>
+        <td className="p-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div></td>
         <td className="p-4"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-20"></div></td>
         <td className="p-4"><div className="h-6 bg-slate-200 dark:bg-slate-700 rounded-full w-24"></div></td>
         <td className="p-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div></td>
@@ -308,6 +310,7 @@ const CasesTable = ({
           <thead className='bg-gray-50 dark:bg-slate-900/50'>
             <tr>
               <SortableHeader label="Entity Name" columnKey="entityName" />
+              <SortableHeader label="Basic Number" columnKey="basicNumber" />
               <SortableHeader label="Case ID" columnKey="caseId" />
               <SortableHeader label="Risk Level" columnKey="riskLevel" />
               <SortableHeader label="Status" columnKey="status" />
@@ -346,6 +349,7 @@ const CasesTable = ({
           <thead className='bg-gray-50 dark:bg-slate-900/50'>
             <tr>
               <SortableHeader label="Entity Name" columnKey="entityName" />
+              <SortableHeader label="Basic Number" columnKey="basicNumber" />
               <SortableHeader label="Case ID" columnKey="caseId" />
               <SortableHeader label="Risk Level" columnKey="riskLevel" />
               <SortableHeader label="Status" columnKey="status" />
@@ -370,6 +374,13 @@ const CasesTable = ({
               >
                 <td className="p-4 font-medium text-blue-600 dark:text-blue-400">
                   {c.entity.entityName}
+                </td>
+                <td className="p-4 text-slate-600 dark:text-slate-400">
+                  {c.entity.basicNumber ? (
+                    <span className="font-mono text-sm">{c.entity.basicNumber}</span>
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500 italic text-sm">N/A</span>
+                  )}
                 </td>
                 <td className="p-4 text-slate-500 dark:text-slate-400 font-mono">{c.caseId}</td>
                 <td className="p-4"><RiskBadge level={c.riskLevel} /></td>

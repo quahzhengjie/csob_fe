@@ -23,8 +23,6 @@ import {
   Phone,
   Mail,
   AlertCircle,
-  Clock,
-  FileX,
   Upload,
   Loader2,
   ExternalLink
@@ -114,11 +112,11 @@ const PartyDocumentChecklist = ({
             {section.documents.map((doc, docIndex) => (
               <DocumentRequirement
                 key={`${doc.ownerId}-${doc.name}-${docIndex}`}
-                document={doc as any} // Type casting since DocumentRequirement expects ChecklistDocument
+                document={doc as PartyChecklistDocument} 
                 scannerProfiles={scannerProfiles}
                 isSelected={selectedDocs.has(doc.id || `${doc.ownerId}-${doc.name}`)}
                 onSelect={() => handleSelectDoc(doc)}
-                onLink={() => {}} // Not used for party documents
+                onLink={() => {}} 
                 onUpload={onUploadDocument}
                 onScan={onScan}
                 onShowHistory={onShowHistory}
@@ -287,35 +285,6 @@ const DocumentSkeleton = () => (
   </div>
 );
 
-// Document Status Badge
-const DocumentStatusBadge = ({ status }: { status: string }) => {
-  const statusConfig = {
-    Verified: { color: 'green', icon: CheckCircle },
-    Pending: { color: 'yellow', icon: Clock },
-    Rejected: { color: 'red', icon: XCircle },
-    Missing: { color: 'gray', icon: FileX }
-  };
-
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.Missing;
-  const Icon = config.icon;
-
-  const colorClasses = {
-    green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-    red: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-    gray: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
-  };
-
-  return (
-    <div className={`
-      inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-      ${colorClasses[config.color as keyof typeof colorClasses]}
-    `}>
-      <Icon size={14} />
-      {status}
-    </div>
-  );
-};
 
 // Profile Detail Item Component
 const ProfileDetailItem = ({

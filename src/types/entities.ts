@@ -111,10 +111,11 @@ export interface Document {
 
 export interface User {
   userId: string;
+  username: string;  // ADD THIS LINE
   name: string;
   email: string;
   role: string;      // Display label
-  roleId: number;    // NEW: Add role ID
+  roleId: number;    
   department: string;
   isActive: boolean;
 }
@@ -141,8 +142,8 @@ export interface CaseDocumentLink {
 }
 
 export interface CreditDetails {
-  lastReviewDate: string;
-  totalExposure: number;
+  lastReviewDate?: string;
+  totalExposure?: number;
   creditLimit: number;
   creditScore: string;
   assessmentNotes: string;
@@ -181,11 +182,12 @@ export interface PartyAssociation {
 // =================================================================================
 
 export interface ScannerProfile {
-  id: string;
+  id?: string;
   name: string;
   resolution: string;
   colorMode: string;
   source: string;
+  isDefault: boolean;
 }
 
 export interface NewPartyData {
@@ -255,6 +257,11 @@ export interface DocumentRequirements {
   individualTemplates: Record<string, TemplateDoc[]>;
   riskBasedDocuments: Record<string, TemplateDoc[]>;
   entityRoleMapping: Record<string, string[]>;
+  bankFormTemplates?: {
+    corporateMandatory: TemplateDoc[];
+    corporateOptional: TemplateDoc[];
+    individualStakeholder: TemplateDoc[];
+  };
 }
 
 // This interface was missing an export in your previous setup.
@@ -378,3 +385,4 @@ export const getDocumentVersions = (documents: Document[], documentType: string,
     .filter(doc => doc.documentType === documentType && doc.ownerId === ownerId)
     .sort((a, b) => b.version - a.version);
 };
+

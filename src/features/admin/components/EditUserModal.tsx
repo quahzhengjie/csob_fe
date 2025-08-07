@@ -1,10 +1,7 @@
-// =================================================================================
-// FILE: src/features/admin/components/EditUserModal.tsx
-// =================================================================================
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, Info, AtSign } from 'lucide-react';
 import type { User, Role } from '@/types/entities';
 
 interface EditUserModalProps {
@@ -83,7 +80,20 @@ export function EditUserModal({ isOpen, onClose, onUpdate, user, userRoles, isLo
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
             <div className="p-8 rounded-xl border w-full max-w-md bg-white dark:bg-slate-800 dark:border-slate-700 shadow-lg">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Edit User</h3>
+                    <div className="flex-1">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white">Edit User</h3>
+                        {/* Compact username display right below title */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <AtSign size={14} className="text-gray-400" />
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{user.username}</span>
+                            <div className="group relative inline-block ml-1">
+                                <Info size={12} className="text-gray-400 cursor-help" />
+                                <div className="invisible group-hover:visible absolute left-0 top-full mt-1 w-48 p-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                                    Login username (cannot be changed)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <button onClick={handleClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700" disabled={isLoading}>
                         <X size={16} />
                     </button>

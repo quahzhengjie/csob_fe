@@ -7,8 +7,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ChevronRight, Edit, AlertCircle, RefreshCw } from 'lucide-react';
 import { updateTemplate, getDocumentRequirements } from '@/lib/apiClient';
 import EditTemplateModal from './EditTemplateModal';
-// ✅ FIX: Correctly import all necessary types from your entities file
-import type { TemplateDoc, DocumentRequirements, TemplateManagerViewProps } from '@/types/entities';
+import type { TemplateDoc, TemplateManagerViewProps } from '@/types/entities';
 
 // No changes needed for ListCard
 const ListCard = ({ title, items }: { title: string, items: string[] }) => (

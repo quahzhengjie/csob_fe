@@ -16,19 +16,20 @@ import { getDocumentRequirements } from '@/lib/apiClient';
 /* TYPES                                                             */
 /* ------------------------------------------------------------------ */
 
-// Represents a single required document in the UI checklist
+
+// Add this property to your ChecklistDocument interface:
 export interface ChecklistDocument {
-  id?: string; // The specific version ID (e.g., '123')
-  documentId?: number; // The specific version ID as a number
+  id?: string;
+  documentId?: number;
 
   // Template Info
   name: string;
   required?: boolean;
   description?: string;
   validityMonths?: number;
-  category?: 'CUSTOMER' | 'BANK_MANDATORY' | 'BANK_NON_MANDATORY'; // Added category
+  category?: 'CUSTOMER' | 'BANK_MANDATORY' | 'BANK_NON_MANDATORY';
 
-  // Status & Metadata from the current version
+  // Status & Metadata
   status: DocStatus;
   ownerId: string;
   ownerName: string;
@@ -42,10 +43,10 @@ export interface ChecklistDocument {
   verifiedBy?: UserInfo | null;
   verifiedDate?: string;
   
-  // This property holds the full history and is used by the History button
+  // Add this property that's missing:
+  reusableDocument?: { documentId: string; versionId: string } | null;
+  
   allVersions?: Document[];
-
-  // Ad-hoc indicator
   isAdHoc?: boolean;
 }
 

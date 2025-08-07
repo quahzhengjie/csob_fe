@@ -185,7 +185,6 @@ export function EntityProfileView({ entity, caseId, onUpdate }: EntityProfileVie
         placeOfIncorporation: editData.placeOfIncorporation,
         usFatcaClassificationFinal: editData.usFatcaClassificationFinal,
         creditDetails: editData.creditDetails,
-         // 👇 ADD THESE 4 LINES - THAT'S IT!
       businessActivity: editData.businessActivity,
       contactPerson: editData.contactPerson,
       contactEmail: editData.contactEmail,

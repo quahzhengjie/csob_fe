@@ -1,0 +1,72 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js
+/.next/
+.next/cache/
+.next/trace/
+.next/server/
+.next/static/
+.next/export-marker.json
+.next/prerender-manifest.json
+.next/required-server-files.json
+.next/routes-manifest.json
+.next/BUILD_ID
+
+# Output & Production Builds
+/out/
+.build/
+dist/
+
+# Logs & Cache
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+.pnpm-debug.log*
+lerna-debug.log*
+.babel-cache.json
+.eslintcache
+
+# Misc
+.DS_Store
+*.pem
+
+# Debugging
+debug.log
+
+# Environment Files (can opt-in for committing if needed)
+.env*
+!.env.example 
+# Keep an example file for reference
+
+# Vercel (Deployment)
+.vercel
+
+# IDE Settings
+.idea/
+.vscode/
+
+# Lock Files (Keep `package-lock.json`, ignore `yarn.lock`)
+package-lock.json
+yarn.lock
+
+# Testing (Playwright & Cypress)
+# Ignore generated test results and reports
+/playwright-report/
+/test-results/
+/cypress/videos/
+/cypress/screenshots/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

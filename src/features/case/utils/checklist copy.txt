@@ -1,0 +1,259 @@
+// =================================================================================
+// FILE: src/features/case/utils/checklist.ts
+// =================================================================================
+import type {
+  Case,
+  Party,
+  Document,
+  CaseDocumentLink,
+  DocumentVersion,
+  DocumentRequirements,
+} from '@/types/entities';
+import type { DocStatus } from '@/types/enums';
+import { getDocumentRequirements } from '@/lib/apiClient';
+
+/* ------------------------------------------------------------------ */
+/*  TYPES                                                             */
+/* ------------------------------------------------------------------ */
+export interface ChecklistDocument {
+  /* ids & linkage */
+  id?: string;                   // version-id when linked | synthetic when missing
+  masterDocumentId?: string;     // the master record this version belongs to
+
+  /* template info */
+  name: string;
+  required?: boolean;
+  description?: string;          // human friendly note from template
+  validityMonths?: number;       // policy rule (e.g. "must be ≤ 3 mths old")
+
+  /* status & metadata */
+  status: DocStatus;
+  ownerId: string;
+  ownerName: string;
+  version?: number;
+  uploadedDate?: string;
+  expiryDate?: string;
+  mimeType?: string;
+  rejectionReason?: string;
+
+  /* reuse & history */
+  reusableDocument?: { documentId: string; versionId: string } | null;
+  allVersions?: DocumentVersion[];
+}
+
+export interface ChecklistSection {
+  category: string;
+  documents: ChecklistDocument[];
+}
+
+/* ------------------------------------------------------------------ */
+/*  MAIN ENGINE                                                       */
+/* ------------------------------------------------------------------ */
+export const generateLiveChecklist = async (
+  onboardingCase: Case,
+  parties: Party[],
+  allDocuments: Document[],
+  caseDocumentLinks: CaseDocumentLink[],
+  isException = false,
+): Promise<{
+  checklist: ChecklistSection[];
+  progress: { percentage: number; missingDocs: ChecklistDocument[] };
+}> => {
+  if (!onboardingCase) {
+    return { checklist: [], progress: { percentage: 0, missingDocs: [] } };
+  }
+
+  const { entity, relatedPartyLinks, riskLevel } = onboardingCase;
+  
+  // Add safety checks
+  if (!entity) {
+    console.error('Case has no entity data!');
+    return { checklist: [], progress: { percentage: 0, missingDocs: [] } };
+  }
+
+  // Fetch document requirements from API
+  let documentRequirementsTemplate: DocumentRequirements;
+  try {
+    documentRequirementsTemplate = await getDocumentRequirements();
+  } catch (error) {
+    console.error('Failed to fetch document requirements:', error);
+    // Return empty checklist if we can't fetch requirements
+    return { checklist: [], progress: { percentage: 0, missingDocs: [] } };
+  }
+
+  const checklist: ChecklistSection[] = [];
+
+  /* ------------ helper: map template-item → live status ------------ */
+  const findContext = (
+    templateDoc: {
+      name: string;
+      required?: boolean;
+      description?: string;
+      validityMonths?: number;
+    },
+    ownerId: string,
+    ownerName: string,
+  ): ChecklistDocument => {
+    const { name } = templateDoc;
+
+    /* ① already linked to this case? */
+    const linkedMaster = allDocuments?.find?.((d) => {
+      const link = caseDocumentLinks?.find?.((l) => l.documentId === d.documentId);
+      return d.ownerId === ownerId && d.name === name && !!link;
+    });
+
+    if (linkedMaster) {
+      const link = caseDocumentLinks.find(
+        (l) => l.documentId === linkedMaster.documentId,
+      )!;
+      const version =
+        linkedMaster.versions?.find((v) => v.id === link.versionId) ??
+        linkedMaster.versions?.[linkedMaster.versions.length - 1];
+
+      return {
+        ...templateDoc,
+        ...version,
+        id: version?.id,
+        status: link.status,
+        ownerId,
+        ownerName,
+        masterDocumentId: version?.id, // Use the version ID for API calls
+        allVersions: linkedMaster.versions,
+      };
+    }
+
+    /* ② reusable verified copy? */
+    const reusable = allDocuments?.find?.(
+      (d) =>
+        d.ownerId === ownerId &&
+        d.name === name &&
+        d.versions?.some((v) => v.status === 'Verified'),
+    );
+
+    if (reusable) {
+      const latest = [...(reusable.versions || [])]
+        .filter((v) => v.status === 'Verified')
+        .sort((a, b) => b.version - a.version)[0];
+
+      return {
+        ...templateDoc,
+        id: latest?.id,
+        status: 'Missing',
+        ownerId,
+        ownerName,
+        reusableDocument: latest ? { documentId: reusable.documentId, versionId: latest.id } : null,
+        masterDocumentId: latest?.id, // Use the version ID for API calls
+        allVersions: reusable.versions,
+      };
+    }
+
+    /* ③ nothing yet */
+    return {
+      ...templateDoc,
+      id: `${ownerId}-${name}`,
+      status: 'Missing',
+      ownerId,
+      ownerName,
+    };
+  };
+
+  /* ================================================================= */
+  /* 1. ENTITY-LEVEL DOCS + FORMS                                      */
+  /* ================================================================= */
+  const entityTemplate = documentRequirementsTemplate.entityTemplates[entity.entityType] ?? [];
+
+  // Start with entity-specific documents
+  const entityDocs = [...entityTemplate];
+
+  // Add mandatory bank forms
+  if (documentRequirementsTemplate.bankFormTemplates?.corporateMandatory) {
+    entityDocs.push(
+      ...documentRequirementsTemplate.bankFormTemplates.corporateMandatory.map(
+        (n) => ({ name: n, required: true }),
+      )
+    );
+  }
+
+  // Add optional bank forms ONLY if this is an exception case
+  if (isException && documentRequirementsTemplate.bankFormTemplates?.corporateOptional) {
+    entityDocs.push(
+      ...documentRequirementsTemplate.bankFormTemplates.corporateOptional.map((n) => ({
+        name: n,
+        required: true, // When it's an exception case, these become required
+      }))
+    );
+  }
+
+  // Add risk-based documents
+  if (riskLevel === 'High' && documentRequirementsTemplate.riskBasedDocuments?.High) {
+    entityDocs.push(...documentRequirementsTemplate.riskBasedDocuments.High);
+  }
+
+  checklist.push({
+    category: 'Entity Documents & Forms',
+    documents: entityDocs.map((t) =>
+      findContext(t, entity.customerId, entity.entityName),
+    ),
+  });
+
+  /* ================================================================= */
+  /* 2. INDIVIDUAL STAKEHOLDERS                                        */
+  /* ================================================================= */
+  (relatedPartyLinks ?? []).forEach((link) => {
+    const party = parties?.find?.((p) => p.partyId === link.partyId);
+    
+    if (!party) {
+      console.warn(`Party not found for ID: ${link.partyId}`);
+      return;
+    }
+
+    // Check if individual stakeholder forms are needed
+    const stakeholderEntities = [
+      'Individual Account',
+      'Joint Account',
+      'Joint Account (Non-resident)',
+    ];
+    const needsStakeholderForms = stakeholderEntities.includes(entity.entityType);
+
+    // Start with individual documents based on residency status
+    const indDocs = [
+      ...(documentRequirementsTemplate.individualTemplates[party.residencyStatus] ?? [])
+    ];
+
+    // Add individual stakeholder forms if needed
+    if (needsStakeholderForms && documentRequirementsTemplate.bankFormTemplates?.individualStakeholder) {
+      indDocs.push(
+        ...documentRequirementsTemplate.bankFormTemplates.individualStakeholder.map((n) => ({
+          name: n,
+          required: true,
+        }))
+      );
+    }
+
+    checklist.push({
+      category: `Documents for ${party.name}`,
+      documents: indDocs.map((t) => findContext(t, party.partyId, party.name)),
+    });
+  });
+
+  /* ================================================================= */
+  /* 3. PROGRESS %                                                     */
+  /* ================================================================= */
+  const progress = calculateDocumentProgress(checklist);
+  
+  return { checklist, progress };
+};
+
+/* ------------------------------------------------------------------ */
+export const calculateDocumentProgress = (sections: ChecklistSection[]) => {
+  const mustHave = sections.flatMap((s) => s.documents.filter((d) => d.required));
+  if (!mustHave.length) return { percentage: 100, missingDocs: [] };
+
+  const done = mustHave.filter((d) => d.status === 'Verified' || d.status === 'Submitted');
+  const missing = mustHave.filter((d) => d.status === 'Missing' || d.status === 'Rejected');
+
+  return {
+    percentage: Math.round((done.length / mustHave.length) * 100),
+    missingDocs: missing,
+  };
+};

@@ -150,6 +150,7 @@ export interface CreditDetails {
 }
 
 export interface CallReport {
+  audioDocumentId: string | undefined;
   reportId: string;
   callDate: string;
   summary: string;

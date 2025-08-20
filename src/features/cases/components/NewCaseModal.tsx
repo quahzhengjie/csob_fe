@@ -136,10 +136,20 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
 
   if (!isOpen) return null;
 
-  // Handles changes for all input fields
+  // Handles changes for all input fields with special handling for basicNumber
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Special handling for basicNumber to only allow digits
+    if (name === 'basicNumber') {
+      const digitsOnly = value.replace(/\D/g, '');
+      const limitedValue = digitsOnly.slice(0, 6); // Limit to 6 digits
+      setFormData(prev => ({ ...prev, [name]: limitedValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+    
+    // Clear any existing error for this field
     if (errors[name]) {
       setErrors(prev => {
         const newErrors = { ...prev };
@@ -147,6 +157,25 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
         return newErrors;
       });
     }
+  };
+
+  // Get validation status and message for Basic Number
+  const getBasicNumberValidation = () => {
+    const value = formData.basicNumber;
+    if (!value) {
+      return { isValid: false, message: 'Basic Number is required', type: 'error' };
+    }
+    if (value.length < 6) {
+      return { 
+        isValid: false, 
+        message: `Enter ${6 - value.length} more digit${6 - value.length === 1 ? '' : 's'} (${value.length}/6)`, 
+        type: 'warning' 
+      };
+    }
+    if (value.length === 6) {
+      return { isValid: true, message: 'Valid format', type: 'success' };
+    }
+    return { isValid: false, message: 'Basic Number must be exactly 6 digits', type: 'error' };
   };
 
   // Validates the form based on whether it's in simplified or full view
@@ -157,10 +186,10 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
       newErrors.entityName = 'Entity name is required';
     }
 
-    if (!formData.basicNumber.trim()) {
-      newErrors.basicNumber = 'Basic Number is required';
-    } else if (!isSimplifiedView && !/^[0-9]{6}$/.test(formData.basicNumber)) {
-      newErrors.basicNumber = 'Basic Number must be exactly 6 digits';
+    // Always validate Basic Number strictly for both views
+    const basicNumberValidation = getBasicNumberValidation();
+    if (!basicNumberValidation.isValid && basicNumberValidation.type === 'error') {
+      newErrors.basicNumber = basicNumberValidation.message;
     }
     
     // Additional validation for the full view
@@ -176,7 +205,7 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
     return newErrors;
   }
 
-  // Handles the form submission
+  // Handles the form submission with better error handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
@@ -228,9 +257,105 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
       
     } catch (error) {
       console.error('Error during case creation:', error);
-      setErrors({ form: 'Failed to create case. Please try again.' });
+      
+      // Handle API validation errors
+      if (error && typeof error === 'object' && 'response' in error) {
+        const apiError = error as { 
+          response?: { 
+            data?: { 
+              errors?: Record<string, string> 
+            } 
+          } 
+        };
+        
+        if (apiError.response?.data?.errors) {
+          const apiErrors: Record<string, string> = {};
+          const errorData = apiError.response.data.errors;
+          
+          // Map API errors to form field names
+          Object.keys(errorData).forEach(key => {
+            const fieldName = key.replace('entity.', ''); // Remove 'entity.' prefix if present
+            apiErrors[fieldName] = errorData[key];
+          });
+          
+          setErrors(apiErrors);
+          
+          // Navigate to the appropriate tab if in full view
+          if (!isSimplifiedView) {
+            if (apiErrors.basicNumber || apiErrors.entityName || apiErrors.taxId) {
+              setActiveTab('basic');
+            } else if (apiErrors.address1 || apiErrors.addressCountry || apiErrors.contactEmail) {
+              setActiveTab('address');
+            }
+          }
+        } else {
+          // Generic error
+          setErrors({ form: 'Failed to create case. Please try again.' });
+        }
+      } else {
+        // Generic error for non-API errors
+        setErrors({ form: 'Failed to create case. Please try again.' });
+      }
       setIsSubmitting(false);
     }
+  };
+
+  /**
+   * Renders the Basic Number input with enhanced validation UI
+   */
+  const renderBasicNumberInput = (showHelperText: boolean = true) => {
+    const validation = getBasicNumberValidation();
+    
+    return (
+      <div>
+        <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-slate-300">
+          Basic Number (BN) <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <input
+            type="text"
+            name="basicNumber"
+            value={formData.basicNumber}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 pl-9 border rounded-lg dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              errors.basicNumber 
+                ? 'border-red-500' 
+                : validation.type === 'success'
+                ? 'border-green-500'
+                : validation.type === 'warning'
+                ? 'border-yellow-500'
+                : ''
+            }`}
+            placeholder="123456"
+            maxLength={6}
+            disabled={isSubmitting}
+          />
+          <Hash className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+          {formData.basicNumber.length === 6 && !errors.basicNumber && (
+            <div className="absolute right-3 top-2.5">
+              <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
+                <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          )}
+        </div>
+        {errors.basicNumber ? (
+          <p className="mt-1 text-sm text-red-600">{errors.basicNumber}</p>
+        ) : (
+          <p className={`mt-1 text-sm ${
+            validation.type === 'success' 
+              ? 'text-green-600' 
+              : validation.type === 'warning'
+              ? 'text-yellow-600'
+              : 'text-gray-500'
+          }`}>
+            {showHelperText ? validation.message : 'Company registration number (6 digits)'}
+          </p>
+        )}
+      </div>
+    );
   };
 
   /**
@@ -255,25 +380,7 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-slate-300">
-            Basic Number (BN) <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              name="basicNumber"
-              value={formData.basicNumber}
-              onChange={handleInputChange}
-              className={`w-full px-3 py-2 pl-9 border rounded-lg dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.basicNumber ? 'border-red-500' : ''}`}
-              placeholder="123456"
-              maxLength={6}
-              disabled={isSubmitting}
-            />
-            <Hash className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-          </div>
-          {errors.basicNumber && <p className="mt-1 text-sm text-red-600">{errors.basicNumber}</p>}
-        </div>
+        {renderBasicNumberInput()}
 
         <div>
           <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-slate-300">
@@ -390,30 +497,7 @@ export function NewCaseModal({ isOpen, onClose, onCreate }: NewCaseModalProps) {
                     </p>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-slate-300">
-                    Basic Number (BN) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                    <input
-                        type="text"
-                        name="basicNumber"
-                        value={formData.basicNumber}
-                        onChange={handleInputChange}
-                        className={`w-full px-3 py-2 pl-9 border rounded-lg dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                        errors.basicNumber ? 'border-red-500' : ''
-                        }`}
-                        placeholder="123456"
-                        maxLength={6}
-                        disabled={isSubmitting}
-                    />
-                    <Hash className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                    </div>
-                    {errors.basicNumber && (
-                    <p className="mt-1 text-sm text-red-600">{errors.basicNumber}</p>
-                    )}
-                    <p className="mt-1 text-xs text-gray-500">Company registration number (6 digits)</p>
-                </div>
+                {renderBasicNumberInput(false)}
 
                 <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-slate-300">

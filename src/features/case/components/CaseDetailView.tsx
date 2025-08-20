@@ -64,6 +64,12 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
   const { caseData, parties, documents, documentLinks, scannerProfiles, allParties, allUsers } = details;
 
+  const existingPartyIds = useMemo(() => 
+    caseData.relatedPartyLinks.map(link => link.partyId),
+    [caseData.relatedPartyLinks]
+  );
+  
+
   // Determine if this is an exception case
   const isException = determineExceptionStatus(caseData);
   const exceptionReason = getExceptionReason(caseData);
@@ -428,13 +434,22 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
   return (
     <>
-      <AddPartyModal
+      {/* <AddPartyModal
         isOpen={isPartyModalOpen}
         onClose={() => setIsPartyModalOpen(false)}
         onAddParty={handleAddNewParty}
         masterIndividuals={allParties}
         entityType={caseData.entity.entityType}
-      />
+      /> */}
+
+<AddPartyModal
+  isOpen={isPartyModalOpen}
+  onClose={() => setIsPartyModalOpen(false)}
+  onAddParty={handleAddNewParty}
+  masterIndividuals={allParties}
+  entityType={caseData.entity.entityType}
+  existingPartyIds={existingPartyIds}  // FIX: Add this line to pass existing party IDs
+/>
 
       <DocumentHistoryModal
         isOpen={!!historyModalDoc}

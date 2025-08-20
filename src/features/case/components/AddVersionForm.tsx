@@ -4,7 +4,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Scan, FileText, Image as ImageIcon , Check, AlertCircle, X, Plus, File } from 'lucide-react';
+import { Upload, Scan, FileText, Image as ImageIcon, Check, AlertCircle, X, Plus, File, Layers, Square } from 'lucide-react';
 import type { ScannerProfile } from '@/types/entities';
 
 // Define the scan response type
@@ -24,7 +24,7 @@ interface AddVersionFormProps {
 type ScanState = 'idle' | 'scanning' | 'scanned' | 'error';
 
 export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: AddVersionFormProps) {
-    const [activeMode, setActiveMode] = useState<'upload' | 'scan'>('upload');
+    const [activeMode, setActiveMode] = useState<'upload' | 'scan'>('scan');
     const [uploadDetails, setUploadDetails] = useState({ expiryDate: '', comments: '' });
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [scanFormat, setScanFormat] = useState<'pdf' | 'png'>('pdf');
@@ -35,13 +35,13 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
     // Initialize with empty string and update when profiles are available
     const [selectedScanner, setSelectedScanner] = useState<string>('');
     
+    // Add scan source state - default to feeder
+    const [scanSource, setScanSource] = useState<'glass' | 'feeder'>('feeder');
+    
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-
 
     // Update selected scanner when profiles change or on first load
     useEffect(() => {
-    
         // ONLY set the initial scanner if we don't have one selected yet AND profiles are available
         const firstProfile = scannerProfiles[0];
         if (firstProfile && firstProfile.id && selectedScanner === '') {
@@ -51,7 +51,6 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
             const currentScanner = scannerProfiles.find(s => s.id?.toString() === selectedScanner.toString());
             if (!currentScanner && firstProfile && firstProfile.id) {
                 setSelectedScanner(firstProfile.id.toString());
-            } else if (currentScanner) {
             }
         }
     }, [scannerProfiles, selectedScanner]);
@@ -137,15 +136,12 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
         if (file.type === 'text/plain' || file.type === 'text/csv') return <FileText className="h-8 w-8 text-gray-600" />;
         return <File className="h-8 w-8 text-gray-500" />;
     };
-    
 
     const handleSaveUpload = () => {
         if (!selectedFile) {
             alert('Please select a file to upload');
             return;
         }
-        
-
         
         onUpload({
             ...uploadDetails,
@@ -156,8 +152,6 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
 
     // This function triggers the scan immediately and saves to DB
     const handleTriggerScan = async () => {
-    
-        
         if (!selectedScanner) {
             alert('Please select a scanner profile');
             return;
@@ -165,14 +159,12 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
 
         // Fix: Convert both to strings for comparison since HTML select values are always strings
         const scanner = scannerProfiles.find(s => s.id?.toString() === selectedScanner.toString());
-
         
         if (!scanner) {
             alert('Invalid scanner selected');
             return;
         }
 
-    
         setScanState('scanning');
         
         try {
@@ -186,7 +178,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                 // Scanner settings
                 resolution: scanner.resolution,
                 colorMode: scanner.colorMode,
-                source: scanner.source,
+                source: scanSource, // NOW USING THE USER-SELECTED SOURCE
                 format: scanFormat,
                 
                 // Timestamp
@@ -204,8 +196,6 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                 scanDetails
             });
             
-    
-            
             // The scan was triggered successfully
             setScanState('scanned');
             setScannedDocumentId(result?.documentId || 'DOC-' + Date.now());
@@ -221,6 +211,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
         setScanState('idle');
         setScannedDocumentId(null);
         setUploadDetails({ expiryDate: '', comments: '' });
+        setScanSource('feeder'); // Reset to default
     };
 
     return (
@@ -228,7 +219,7 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
             {/* Header with Mode Toggle */}
             <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Version</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upload / Scan New Version</h3>
                     <button
                         onClick={onCancel}
                         className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
@@ -394,74 +385,119 @@ export function AddVersionForm({ onUpload, onScan, onCancel, scannerProfiles }: 
                     <div className="space-y-6">
                         {scanState === 'idle' && (
                             <>
-                                {/* Scanner Configuration */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Scanner Profile
-                                        </label>
-                                        <select
-                                           value={selectedScanner}
-                                           onChange={(e) => {
-                                               const newScannerId = e.target.value;
-                                               setSelectedScanner(newScannerId);
-                                           }}
-                                           className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg 
-                                                    bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100
-                                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                                           >
-                                            {scannerProfiles.map(profile => (
-                                                <option key={profile.id} value={profile.id}>
-                                                    {profile.name} ({profile.source} - {profile.colorMode})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {selectedScanner && (
-                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                Selected: {scannerProfiles.find(s => s.id?.toString() === selectedScanner.toString())?.name}
-                                            </p>
-                                        )}
-                                    </div>
+{/* Scanner Configuration */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Scanner Profile
+        </label>
+        <select
+           value={selectedScanner}
+           onChange={(e) => {
+               const newScannerId = e.target.value;
+               setSelectedScanner(newScannerId);
+           }}
+           className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg 
+                    bg-white dark:bg-slate-700 text-gray-900 dark:text-gray-100
+                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+           >
+            {scannerProfiles.map(profile => (
+                <option key={profile.id} value={profile.id}>
+                    {profile.name} ({profile.source} - {profile.colorMode})
+                </option>
+            ))}
+        </select>
+    </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Output Format
-                                        </label>
-                                        <div className="flex gap-4">
-                                            <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                                                <input
-                                                    type="radio"
-                                                    value="pdf"
-                                                    checked={scanFormat === 'pdf'}
-                                                    onChange={(e) => setScanFormat(e.target.value as 'pdf')}
-                                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                                                />
-                                                <FileText size={16} className="text-red-500" />
-                                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">PDF</span>
-                                            </label>
-                                            <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-                                                <input
-                                                    type="radio"
-                                                    value="png"
-                                                    checked={scanFormat === 'png'}
-                                                    onChange={(e) => setScanFormat(e.target.value as 'png')}
-                                                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                                                />
-                                              <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-    <input
-        type="radio"
-        value="png"
-        checked={scanFormat === 'png'}
-        onChange={(e) => setScanFormat(e.target.value as 'png')}
-        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-    />
-    <ImageIcon size={16} className="text-blue-500" aria-hidden="true"/>
-    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">PNG</span>
-</label>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
+    <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Output Format
+        </label>
+        <div className="flex gap-2">
+            <button
+                type="button"
+                onClick={() => setScanFormat('pdf')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
+                    scanFormat === 'pdf'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                        : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+            >
+                <FileText size={14} className={scanFormat === 'pdf' ? 'text-red-500' : 'text-gray-500'} />
+                <span className={`text-sm font-medium ${
+                    scanFormat === 'pdf' ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-gray-300'
+                }`}>PDF</span>
+            </button>
+            <button
+                type="button"
+                onClick={() => setScanFormat('png')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all ${
+                    scanFormat === 'png'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                        : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+            >
+                <ImageIcon size={14} className={scanFormat === 'png' ? 'text-blue-500' : 'text-gray-500'} />
+                <span className={`text-sm font-medium ${
+                    scanFormat === 'png' ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-gray-300'
+                }`}>PNG</span>
+            </button>
+        </div>
+        
+        {/* Only show warning when PNG + Feeder combo */}
+        {scanFormat === 'png' && scanSource === 'feeder' && (
+            <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-400">
+                ⚠ PNG only saves first page
+            </p>
+        )}
+    </div>
+</div>
+
+{/* Simplified Scan Source Selection */}
+<div>
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Scan Source
+    </label>
+    <div className="flex gap-2">
+        <button
+            type="button"
+            onClick={() => setScanSource('glass')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                scanSource === 'glass' 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                    : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}
+        >
+            <Square size={14} className={`${
+                scanSource === 'glass' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+            }`} />
+            <span className={`text-sm font-medium ${
+                scanSource === 'glass' ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-gray-300'
+            }`}>
+                Flatbed/Glass
+            </span>
+        </button>
+
+        <button
+            type="button"
+            onClick={() => setScanSource('feeder')}
+            className={`flex-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                scanSource === 'feeder' 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                    : 'border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+            }`}
+        >
+            <Layers size={14} className={`${
+                scanSource === 'feeder' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
+            }`} />
+            <span className={`text-sm font-medium ${
+                scanSource === 'feeder' ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-gray-300'
+            }`}>
+                Document Feeder
+            </span>
+        </button>
+    </div>
+</div>
 
                                 {/* Metadata Fields for Scan */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

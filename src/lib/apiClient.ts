@@ -1348,3 +1348,84 @@ export const getDocumentVersions = (documents: Document[], documentType: string,
     .filter(doc => doc.documentType === documentType && doc.ownerId === ownerId)
     .sort((a, b) => b.version - a.version);
 };
+
+// =================================================================================
+// NEW API FUNCTIONS TO ADD TO: src/lib/apiClient.ts
+// =================================================================================
+
+// Add these functions to your existing apiClient.ts file
+
+/**
+ * Update party relationships for a case
+ * This replaces all existing relationships for this party in the case
+ */
+export const updatePartyRelationships = async (
+  caseId: string, 
+  partyId: string, 
+  relationships: { type: string; ownershipPercentage?: number }[]
+): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/cases/${caseId}/parties/${partyId}/relationships`, {
+      method: 'PUT',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ relationships }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update party relationships: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to update party relationships:", error);
+    throw error;
+  }
+};
+
+/**
+ * Remove a specific relationship type from a party in a case
+ * This removes only one relationship type, not the entire party
+ */
+export const removePartyRelationship = async (
+  caseId: string, 
+  partyId: string, 
+  relationshipType: string
+): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/cases/${caseId}/parties/${partyId}/relationships/${encodeURIComponent(relationshipType)}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to remove party relationship: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to remove party relationship:", error);
+    throw error;
+  }
+};
+
+/**
+ * Remove all relationships for a party from a case (removes the party entirely)
+ * This is different from removeRelatedParty which removes by relationship type
+ */
+export const removePartyFromCase = async (
+  caseId: string, 
+  partyId: string
+): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/cases/${caseId}/parties/${partyId}`, {
+      method: 'DELETE',
+      headers: await getAuthHeaders(),
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to remove party from case: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Failed to remove party from case:", error);
+    throw error;
+  }
+};

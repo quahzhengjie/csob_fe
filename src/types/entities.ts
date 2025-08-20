@@ -347,3 +347,18 @@ export interface CaseSummary extends Case {
   expiringSoonCount: number;
 }
 
+// =================================================================================
+// TYPE DEFINITIONS TO ADD TO: src/types/entities.ts
+// =================================================================================
+
+// Add these interfaces to your types file if they don't exist
+
+export interface EditPartyData {
+  partyId: string;
+  name: string;
+  relationships: { type: string; ownershipPercentage?: number }[];
+}
+
+export interface PartyRelationshipUpdate {
+  relationships: { type: string; ownershipPercentage?: number }[];
+}

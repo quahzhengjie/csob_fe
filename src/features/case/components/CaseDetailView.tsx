@@ -1,19 +1,24 @@
+// =================================================================================
+// COMPLETE INTEGRATION FOR: src/features/case/components/CaseDetailView.tsx
+// =================================================================================
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Edit, UserPlus, AlertTriangle } from 'lucide-react';
 import type { Case, Party, Document, CaseDocumentLink, ScannerProfile, NewPartyData, CallReport, CaseStatus, RiskLevel } from '@/types/entities';
-import { assignCase, updateCaseStatus, addActivityLog, updateEntityData, addCallReport, uploadDocument, triggerScan, getCaseDetails, updateDocumentStatus, updateDocumentLink, updateCallReport, deleteCallReport ,addRelatedParty, createParty} from '@/lib/apiClient';
+import { assignCase, updateCaseStatus, addActivityLog, updateEntityData, addCallReport, uploadDocument, triggerScan, getCaseDetails, updateDocumentStatus, updateDocumentLink, updateCallReport, deleteCallReport, addRelatedParty, createParty, updatePartyRelationships, removePartyFromCase } from '@/lib/apiClient';
 import { RiskBadge } from '@/components/common/RiskBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { WithPermission } from '@/features/rbac/WithPermission';
-import { useAuth } from '@/context/AuthContext'; // CORRECTED IMPORT
+import { useAuth } from '@/context/AuthContext';
 import { generateLiveChecklist, type ChecklistDocument, type ChecklistSection } from '../utils/checklist';
 import { determineExceptionStatus, getExceptionReason } from '../utils/exceptionRules';
 import { DocumentChecklist } from './DocumentChecklist';
 import { PartyList } from './PartyList';
 import AddPartyModal from './AddPartyModal';
+import EditPartyModal from './EditPartyModal';
 import { DocumentHistoryModal } from './DocumentHistoryModal';
 import { DocumentPreviewModal } from './DocumentPreviewModal';
 import { CaseOverview } from './CaseOverview';
@@ -38,11 +43,19 @@ interface CaseDetailViewProps {
   }
 }
 
+interface EditPartyData {
+  partyId: string;
+  name: string;
+  relationships: { type: string; ownershipPercentage?: number }[];
+}
+
 type CaseDetailTab = 'checklist' | 'account' | 'entity_profile' | 'credit_details' | 'call_reports' | 'ad_hoc' | 'activity_log';
 
 export default function CaseDetailView({ details: initialDetails }: CaseDetailViewProps) {
   const [details, setDetails] = useState(initialDetails);
   const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
+  const [isEditPartyModalOpen, setIsEditPartyModalOpen] = useState(false);
+  const [editingParty, setEditingParty] = useState<EditPartyData | null>(null);
   const [historyModalDoc, setHistoryModalDoc] = useState<{
     documentType: string;
     versions: Document[];
@@ -68,7 +81,6 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     caseData.relatedPartyLinks.map(link => link.partyId),
     [caseData.relatedPartyLinks]
   );
-  
 
   // Determine if this is an exception case
   const isException = determineExceptionStatus(caseData);
@@ -102,7 +114,6 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
   // UPDATED FUNCTION - Uses actual logged-in user with debug logging
   const logAndUpdateState = async (type: string, logDetails: string) => {
-
     // Use the actual user ID, fallback to username, or 'SYSTEM' if neither available
     const performedBy = user?.userId || user?.username || 'SYSTEM';
     
@@ -170,11 +181,15 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
       const profileName = (scanDetails.scanDetails.profile as string) || (scanDetails.scanDetails.profileName as string) || 'Default Scanner';
 
+      // ADD THIS: Extract the source from scanDetails
+    const source = (scanDetails.scanDetails.source as string) || 'feeder';
+
       const scanRequest = {
         profileName,
         ownerType,
         ownerId,
         documentType: doc.name,
+        source: source,
         format: (scanDetails.scanDetails.format as string) || 'pdf'
       };
 
@@ -247,6 +262,63 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
       alert('Failed to add party. Please try again.');
     }
   };
+
+  // =====================================================================
+  // NEW PARTY EDITING HANDLERS
+  // =====================================================================
+
+  const handleEditParty = (partyId: string, name: string, relationships: { type: string; ownershipPercentage?: number }[]) => {
+    setEditingParty({
+      partyId,
+      name,
+      relationships
+    });
+    setIsEditPartyModalOpen(true);
+  };
+
+  const handleUpdateParty = async (partyId: string, relationships: { type: string; ownershipPercentage?: number }[]) => {
+    try {
+      await updatePartyRelationships(caseData.caseId, partyId, relationships);
+      
+      const updatedDetails = await getCaseDetails(caseData.caseId);
+      if (updatedDetails) {
+        setDetails(updatedDetails);
+      }
+      
+      setIsEditPartyModalOpen(false);
+      setEditingParty(null);
+      
+      const partyName = editingParty?.name || 'Unknown Party';
+      await logAndUpdateState('party_updated', `Updated roles for ${partyName}: ${relationships.map(r => r.type).join(', ')}`);
+    } catch (error) {
+      console.error('Failed to update party:', error);
+      alert('Failed to update party. Please try again.');
+    }
+  };
+
+  const handleRemoveParty = async (partyId: string, partyName?: string) => {
+    try {
+      await removePartyFromCase(caseData.caseId, partyId);
+      
+      const updatedDetails = await getCaseDetails(caseData.caseId);
+      if (updatedDetails) {
+        setDetails(updatedDetails);
+      }
+      
+      setIsEditPartyModalOpen(false);
+      setEditingParty(null);
+      
+      const finalPartyName = partyName || editingParty?.name || 'Unknown Party';
+      await logAndUpdateState('party_removed', `Removed party: ${finalPartyName}`);
+    } catch (error) {
+      console.error('Failed to remove party:', error);
+      alert('Failed to remove party. Please try again.');
+    }
+  };
+
+  // =====================================================================
+  // EXISTING DOCUMENT AND MODAL HANDLERS
+  // =====================================================================
 
   const handleShowHistory = (doc: ChecklistDocument) => {
     const isPartyDoc = parties.some(p => p.partyId === doc.ownerId);
@@ -434,22 +506,27 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
   return (
     <>
-      {/* <AddPartyModal
+      <AddPartyModal
         isOpen={isPartyModalOpen}
         onClose={() => setIsPartyModalOpen(false)}
         onAddParty={handleAddNewParty}
         masterIndividuals={allParties}
         entityType={caseData.entity.entityType}
-      /> */}
+        existingPartyIds={existingPartyIds}
+      />
 
-<AddPartyModal
-  isOpen={isPartyModalOpen}
-  onClose={() => setIsPartyModalOpen(false)}
-  onAddParty={handleAddNewParty}
-  masterIndividuals={allParties}
-  entityType={caseData.entity.entityType}
-  existingPartyIds={existingPartyIds}  // FIX: Add this line to pass existing party IDs
-/>
+      <EditPartyModal
+        isOpen={isEditPartyModalOpen}
+        onClose={() => {
+          setIsEditPartyModalOpen(false);
+          setEditingParty(null);
+        }}
+        onUpdateParty={handleUpdateParty}
+        onRemoveParty={handleRemoveParty}
+        party={editingParty}
+        entityType={caseData.entity.entityType}
+        existingPartyIds={existingPartyIds}
+      />
 
       <DocumentHistoryModal
         isOpen={!!historyModalDoc}
@@ -476,6 +553,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
         users={allUsers}
         currentAssigneeId={caseData.assignedTo}
       />
+      
       <UpdateCaseModal
         isOpen={isUpdateModalOpen}
         onClose={() => setIsUpdateModalOpen(false)}
@@ -554,7 +632,13 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
                 {activeTab === 'checklist' && (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-1 space-y-6">
-                            <PartyList caseData={caseData} parties={parties} onAddParty={() => setIsPartyModalOpen(true)} />
+                            <PartyList 
+                                caseData={caseData} 
+                                parties={parties} 
+                                onAddParty={() => setIsPartyModalOpen(true)}
+                                onEditParty={handleEditParty}
+                                onRemoveParty={handleRemoveParty}
+                            />
                         </div>
                         <div className="lg:col-span-2">
                             {isLoadingChecklist ? (

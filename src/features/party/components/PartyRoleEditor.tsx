@@ -137,7 +137,7 @@ const AssociationCard = ({
   const showOwnershipField = useMemo(() => {
     if (!isEditing || !editingState) return false;
     return Array.from(editingState.roles).some(role => OWNERSHIP_ROLES.includes(role));
-  }, [isEditing, editingState?.roles]);
+  }, [isEditing, editingState]);
 
   // Extract ownership from role display
   const getOwnershipFromRole = (role: string) => {

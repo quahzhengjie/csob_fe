@@ -166,39 +166,36 @@ export function AddToCaseModal({
 
   // Load cases and document requirements on mount
   useEffect(() => {
-    if (isOpen) {
-      loadCases();
-      loadDocumentRequirements();
-    }
-  }, [isOpen]);
+    const loadData = async () => {
+      if (isOpen) {
+        setIsLoading(true);
+        try {
+          const cases = await getCases();
+          setAllCases(cases);
+        } catch (error) {
+          console.error('Failed to load cases:', error);
+          showToast('error', 'Failed to load cases');
+        } finally {
+          setIsLoading(false);
+        }
+        
+        try {
+          const requirements = await getDocumentRequirements();
+          setDocumentRequirements(requirements);
+        } catch (error) {
+          console.error('Failed to load document requirements:', error);
+        }
+      }
+    };
+    
+    loadData();
+  }, [isOpen, showToast]);
 
   // Reset roles when case selection changes
   useEffect(() => {
     setSelectedRoles(new Set());
     setOwnershipPercentage(undefined);
   }, [selectedCase]);
-
-  const loadCases = async () => {
-    setIsLoading(true);
-    try {
-      const cases = await getCases();
-      setAllCases(cases);
-    } catch (error) {
-      console.error('Failed to load cases:', error);
-      showToast('error', 'Failed to load cases');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadDocumentRequirements = async () => {
-    try {
-      const requirements = await getDocumentRequirements();
-      setDocumentRequirements(requirements);
-    } catch (error) {
-      console.error('Failed to load document requirements:', error);
-    }
-  };
 
   const filteredCases = useMemo(() => {
     return allCases.filter(caseItem => {

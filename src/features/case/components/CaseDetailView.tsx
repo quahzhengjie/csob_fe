@@ -1,5 +1,6 @@
 // =================================================================================
-// COMPLETE INTEGRATION FOR: src/features/case/components/CaseDetailView.tsx
+// CLEANED UP: src/features/case/components/CaseDetailView.tsx
+// Removed unused CaseDocumentLink and linkId generation that caused hydration errors
 // =================================================================================
 
 'use client';
@@ -7,8 +8,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Edit, UserPlus, AlertTriangle } from 'lucide-react';
-import type { Case, Party, Document, CaseDocumentLink, ScannerProfile, NewPartyData, CallReport, CaseStatus, RiskLevel } from '@/types/entities';
-import { assignCase, updateCaseStatus, addActivityLog, updateEntityData, addCallReport, uploadDocument, triggerScan, getCaseDetails, updateDocumentStatus, updateDocumentLink, updateCallReport, deleteCallReport, addRelatedParty, createParty, updatePartyRelationships, removePartyFromCase } from '@/lib/apiClient';
+import type { Case, Party, Document, ScannerProfile, NewPartyData, CallReport, CaseStatus, RiskLevel } from '@/types/entities';
+import { 
+  assignCase, 
+  updateCaseStatus, 
+  addActivityLog, 
+  updateEntityData, 
+  addCallReport, 
+  uploadDocument, 
+  triggerScan, 
+  getCaseDetails, 
+  updateDocumentStatus, 
+  updateDocumentLink, 
+  updateCallReport, 
+  deleteCallReport, 
+  addRelatedParty, 
+  createParty, 
+  updatePartyRelationships, 
+  removePartyFromCase 
+} from '@/lib/apiClient';
 import { RiskBadge } from '@/components/common/RiskBadge';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { WithPermission } from '@/features/rbac/WithPermission';
@@ -36,7 +54,6 @@ interface CaseDetailViewProps {
     caseData: Case;
     parties: Party[];
     documents: Document[];
-    documentLinks: CaseDocumentLink[];
     scannerProfiles: ScannerProfile[];
     allParties: Party[];
     allUsers: { userId: string, name: string }[];
@@ -49,7 +66,7 @@ interface EditPartyData {
   relationships: { type: string; ownershipPercentage?: number }[];
 }
 
-type CaseDetailTab = 'checklist' | 'account' | 'entity_profile' | 'credit_details' | 'call_reports' | 'ad_hoc' | 'activity_log';
+type CaseDetailTab = 'checklist' | 'entity_profile' | 'credit_details' | 'call_reports' | 'ad_hoc' | 'activity_log';
 
 export default function CaseDetailView({ details: initialDetails }: CaseDetailViewProps) {
   const [details, setDetails] = useState(initialDetails);
@@ -75,7 +92,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
   }>({ checklist: [], progress: { percentage: 0, missingDocs: [] } });
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(true);
 
-  const { caseData, parties, documents, documentLinks, scannerProfiles, allParties, allUsers } = details;
+  const { caseData, parties, documents, scannerProfiles, allParties, allUsers } = details;
 
   const existingPartyIds = useMemo(() => 
     caseData.relatedPartyLinks.map(link => link.partyId),
@@ -106,13 +123,13 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     };
 
     loadChecklist();
-  }, [caseData, parties, documents, documentLinks, isException]);
+  }, [caseData, parties, documents, isException]);
 
   const allChecklistDocs = useMemo(() =>
     checklistData.checklist.flatMap(section => section.documents).filter(doc => doc.status !== 'Missing'),
   [checklistData.checklist]);
 
-  // UPDATED FUNCTION - Uses actual logged-in user with debug logging
+  // Log activity and update state
   const logAndUpdateState = async (type: string, logDetails: string) => {
     // Use the actual user ID, fallback to username, or 'SYSTEM' if neither available
     const performedBy = user?.userId || user?.username || 'SYSTEM';
@@ -128,18 +145,17 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     }
   };
 
+  // CLEANED UP: Removed unused linkId generation - backend doesn't support document linking
   const handleLinkDocument = async (docToLink: ChecklistDocument) => {
-    if (!docToLink.reusableDocument) return;
-    const newLink: CaseDocumentLink = {
-        linkId: `LNK-${crypto.randomUUID()}`,
-        caseId: caseData.caseId,
-        documentId: docToLink.reusableDocument.documentId.toString(),
-        versionId: docToLink.reusableDocument.versionId.toString(),
-        status: 'Verified',
-        comments: 'Linked from existing master document.'
-    };
-    setDetails(current => ({ ...current, documentLinks: [...current.documentLinks, newLink] }));
-    await logAndUpdateState('document_linked', `Linked document: ${docToLink.name}`);
+    // Document linking is not supported by the backend
+    // The backend associates documents directly with cases/parties via ownerType and ownerId
+    // If you need this functionality, implement a backend endpoint first
+    
+    console.warn('Document linking is not implemented in the backend');
+    alert('Document linking functionality is not available. Please upload the document directly.');
+    
+    // Just log the attempt for now
+    await logAndUpdateState('document_link_attempted', `Attempted to link document: ${docToLink.name}`);
   };
 
   const handleSaveUpload = async (doc: ChecklistDocument, uploadDetails: { expiryDate: string, comments: string, file?: File }) => {
@@ -180,9 +196,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
       const ownerId = isPartyDoc ? doc.ownerId : caseData.caseId;
 
       const profileName = (scanDetails.scanDetails.profile as string) || (scanDetails.scanDetails.profileName as string) || 'Default Scanner';
-
-      // ADD THIS: Extract the source from scanDetails
-    const source = (scanDetails.scanDetails.source as string) || 'feeder';
+      const source = (scanDetails.scanDetails.source as string) || 'feeder';
 
       const scanRequest = {
         profileName,
@@ -232,10 +246,17 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
           isPEP: false,
           pepCountry: undefined,
         };
+        
+        // Backend generates the party ID
         const createdParty = await createParty(newPartyData);
         finalPartyId = createdParty.partyId;
         partyName = createdParty.name;
-        setDetails(current => ({ ...current, parties: [...current.parties, createdParty], allParties: [...current.allParties, createdParty] }));
+        
+        setDetails(current => ({ 
+          ...current, 
+          parties: [...current.parties, createdParty], 
+          allParties: [...current.allParties, createdParty] 
+        }));
       } else {
         finalPartyId = partyData.partyId!;
         const existingParty = details.allParties.find(p => p.partyId === finalPartyId);
@@ -263,10 +284,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     }
   };
 
-  // =====================================================================
-  // NEW PARTY EDITING HANDLERS
-  // =====================================================================
-
+  // Party editing handlers
   const handleEditParty = (partyId: string, name: string, relationships: { type: string; ownershipPercentage?: number }[]) => {
     setEditingParty({
       partyId,
@@ -316,10 +334,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
     }
   };
 
-  // =====================================================================
-  // EXISTING DOCUMENT AND MODAL HANDLERS
-  // =====================================================================
-
+  // Document and modal handlers
   const handleShowHistory = (doc: ChecklistDocument) => {
     const isPartyDoc = parties.some(p => p.partyId === doc.ownerId);
     const ownerIdToFind = isPartyDoc ? doc.ownerId : caseData.caseId;
@@ -387,7 +402,7 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
       await logAndUpdateState('document_made_current', `Updated document version to v${document.version}`);
       alert('Document version updated successfully!');
     } catch (error) {
-      alert(`Failed to approve document: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Failed to update document: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
   
@@ -421,10 +436,10 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
 
   const handleAssignCase = async (userId: string, note: string) => {
     const updatedCase = await assignCase(caseData.caseId, userId);
-    const user = allUsers.find(u => u.userId === userId);
+    const assignedUser = allUsers.find(u => u.userId === userId);
     if (updatedCase) {
         setDetails(prev => ({...prev, caseData: updatedCase}));
-        await logAndUpdateState('case_assigned', `Assigned case to ${user?.name}.${note ? ` Note: ${note}` : ''}`);
+        await logAndUpdateState('case_assigned', `Assigned case to ${assignedUser?.name}.${note ? ` Note: ${note}` : ''}`);
     }
     setIsAssignModalOpen(false);
   };
@@ -644,16 +659,26 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
                             {isLoadingChecklist ? (
                                 <div className="text-center py-12">Loading checklist...</div>
                             ) : (
-                                <DocumentChecklist
-                                  checklist={checklistData.checklist}
-                                  scannerProfiles={scannerProfiles}
-                                  {...docHandlerProps}
-                                />
+                              <DocumentChecklist
+                                caseData={caseData}
+                                isChecklistTab={true}           // Shows "Document Checklist" title
+                                showCategoryGrouping={true}      // Shows Customer/Bank category grouping
+                                parties={parties}
+                                checklist={checklistData.checklist}
+                                scannerProfiles={scannerProfiles}
+                                {...docHandlerProps}
+                              />
                             )}
                         </div>
                     </div>
                 )}
-                {activeTab === 'entity_profile' && <EntityProfileView entity={caseData.entity} caseId={caseData.caseId} onUpdate={handleUpdateEntity} /> }
+                {activeTab === 'entity_profile' && (
+                  <EntityProfileView 
+                    entity={caseData.entity} 
+                    caseId={caseData.caseId} 
+                    onUpdate={handleUpdateEntity} 
+                  />
+                )}
                 {activeTab === 'credit_details' && (
                   <CreditDetailsView
                     caseData={caseData}
@@ -664,14 +689,27 @@ export default function CaseDetailView({ details: initialDetails }: CaseDetailVi
                 )}
                 {activeTab === 'call_reports' && (
                   <CallReportsView
-                  reports={caseData.callReports}
-                  onAddReport={handleAddCallReport}
-                  onUpdateReport={handleUpdateCallReport}
-                  onDeleteReport={handleDeleteCallReport}
+                    reports={caseData.callReports}
+                    onAddReport={handleAddCallReport}
+                    onUpdateReport={handleUpdateCallReport}
+                    onDeleteReport={handleDeleteCallReport}
                   />
                 )}
-                {activeTab === 'ad_hoc' && <AdHocDocumentsView caseData={caseData} documents={documents} scannerProfiles={scannerProfiles} {...docHandlerProps} /> }
-                {activeTab === 'activity_log' && <ActivityLogView activities={caseData.activities} users={allUsers} /> }
+                {activeTab === 'ad_hoc' && (
+                  <AdHocDocumentsView 
+                  parties={[]}
+                    caseData={caseData} 
+                    documents={documents} 
+                    scannerProfiles={scannerProfiles} 
+                    {...docHandlerProps} 
+                  />
+                )}
+                {activeTab === 'activity_log' && (
+                  <ActivityLogView 
+                    activities={caseData.activities} 
+                    users={allUsers} 
+                  />
+                )}
             </div>
         </div>
       </div>

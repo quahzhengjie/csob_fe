@@ -128,13 +128,21 @@ const getAuthHeadersForUpload = async (): Promise<HeadersInit> => {
 };
 
 
+// In apiClient.ts - Update handleApiResponse
 const handleApiResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
-    // Handle 401 Unauthorized by redirecting to login
+    // Handle 401 Unauthorized
     if (response.status === 401 && typeof window !== 'undefined') {
+      // Clear auth data
       localStorage.removeItem('authToken');
       localStorage.removeItem('authUser');
-      window.location.href = '/login';
+      localStorage.removeItem('authTimestamp');
+      
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login?session=expired';
+      }
+      
       throw new Error('Authentication required');
     }
     
@@ -142,13 +150,13 @@ const handleApiResponse = async <T>(response: Response): Promise<T> => {
     console.error(`API Error: ${response.status} - ${errorText}`);
     throw new Error(`API call failed: ${response.status} ${response.statusText}`);
   }
-  // Handle cases where the response body might be empty (e.g., for a 204 No Content status)
+  
   const text = await response.text();
   try {
-    return text ? JSON.parse(text) : null;
-  } catch {
-    console.error("Failed to parse API response JSON:", text);
-    throw new Error("Invalid JSON response from server.");
+    return text ? JSON.parse(text) : {} as T;
+  } catch (e) {
+    console.error('Failed to parse response:', e);
+    return {} as T;
   }
 };
 
@@ -758,16 +766,39 @@ export const createParty = async (partyData: Omit<Party, 'partyId'>): Promise<Pa
     throw error;
   }
 };
-
 export const updateParty = async (partyId: string, partyData: Partial<Party>): Promise<Party> => {
   try {
+    // 🔍 ADD DEBUG LOGGING
+    console.log('=== API CLIENT updateParty DEBUG ===');
+    console.log('partyId:', partyId);
+    console.log('partyData.isPEP:', partyData.isPEP, typeof partyData.isPEP);
+    console.log('partyData.pepRemarks:', partyData.pepRemarks, typeof partyData.pepRemarks);  // 🔧 ADD: Debug remarks
+    console.log('Full partyData being sent:', partyData);
+    
+    // 🔍 DEBUG THE JSON SERIALIZATION
+    const jsonBody = JSON.stringify(partyData);
+    console.log('JSON.stringify result:', jsonBody);
+    console.log('Parsed back:', JSON.parse(jsonBody));
+    
     const response = await fetch(`${API_BASE_URL}/parties/${partyId}`, {
       method: 'PUT',
       headers: await getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(partyData),
+      body: jsonBody,
     });
-    return await handleApiResponse<Party>(response);
+    
+    // 🔍 DEBUG THE RESPONSE
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const result = await handleApiResponse<Party>(response);
+    
+    // 🔍 DEBUG THE PARSED RESPONSE
+    console.log('API response isPEP:', result.isPEP, typeof result.isPEP);
+    console.log('API response pepRemarks:', result.pepRemarks, typeof result.pepRemarks);  // 🔧 ADD: Debug remarks
+    console.log('Full API response:', result);
+    
+    return result;
   } catch (error) {
     console.error("Failed to update party:", error);
     throw error;

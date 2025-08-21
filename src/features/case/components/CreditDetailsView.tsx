@@ -177,9 +177,13 @@ export function CreditDetailsView({
         </div>
 
         <div className="lg:col-span-2">
-          <DocumentChecklist
+        <DocumentChecklist
             checklist={creditChecklist}
             scannerProfiles={scannerProfiles}
+            isChecklistTab={false}          // No title (you already have "Ad-Hoc Documents")
+            showCategoryGrouping={false}     // Simple flat list
+            parties={[]}
+            caseData={caseData}
             onLinkDocument={onLinkDocument}
             onUploadDocument={onUploadDocument}
             onScan={onScan}

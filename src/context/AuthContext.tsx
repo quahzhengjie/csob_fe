@@ -1,12 +1,11 @@
 // =================================================================================
-// FILE: src/context/AuthContext.tsx
+// FILE: src/context/AuthContext.tsx - Add checkTokenExpiry
 // =================================================================================
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { AuthRequest, AuthResponse } from '@/types/entities'; // Assuming User and Role are also in entities
+import { AuthRequest, AuthResponse } from '@/types/entities';
 import { API_BASE_URL } from '@/lib/apiClient';
-
 
 interface AuthContextType {
   user: AuthResponse | null;
@@ -16,6 +15,7 @@ interface AuthContextType {
   login: (authRequest: AuthRequest) => Promise<void>;
   logout: () => void;
   hasPermission: (permission: string) => boolean;
+  clearAuth: () => void; // Add this for API client to call
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,16 +33,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (storedToken && storedUser) {
         const userData: AuthResponse = JSON.parse(storedUser);
+        
+        // Optional: Check if token is expired based on expiresIn
+        if (userData.expiresIn) {
+          const tokenAge = Date.now() - (parseInt(localStorage.getItem('authTimestamp') || '0'));
+          if (tokenAge > userData.expiresIn * 1000) {
+            // Token expired
+            clearAuth();
+            window.location.href = '/login?session=expired';
+            return;
+          }
+        }
+        
         setToken(storedToken);
         setUser(userData);
       }
     } catch (error) {
       console.error('Failed to parse stored user data:', error);
-      // Clear potentially corrupt data from storage
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('authUser');
+      clearAuth();
     }
     setIsLoading(false);
+  }, []);
+
+  const clearAuth = useCallback(() => {
+    setToken(null);
+    setUser(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
+    localStorage.removeItem('authTimestamp');
   }, []);
 
   const login = async (authRequest: AuthRequest) => {
@@ -65,28 +83,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Store token and user data upon successful login
     localStorage.setItem('authToken', data.jwt);
     localStorage.setItem('authUser', JSON.stringify(data));
+    localStorage.setItem('authTimestamp', Date.now().toString()); // Store login time
   };
 
   const logout = () => {
-    setToken(null);
-    setUser(null);
-    // Clear all auth-related items from storage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('authUser');
-    window.location.href = '/login'; // Redirect to login page
+    clearAuth();
+    window.location.href = '/login';
   };
 
   const hasPermission = useCallback((permission: string): boolean => {
     if (!user || !user.permissions) {
       return false;
     }
-    // Check if the user's permissions set includes the required permission
     return user.permissions.includes(permission);
   }, [user]);
 
-  // Don't render the rest of the app until the auth state has been loaded from storage
+  // Show loading spinner while checking auth
   if (isLoading) {
-    return null; // Or you can return a full-page loading spinner here
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
@@ -99,6 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login, 
         logout,
         hasPermission,
+        clearAuth,
       }}
     >
       {children}

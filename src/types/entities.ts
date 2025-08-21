@@ -60,8 +60,10 @@ export interface Party {
   birthDate: string;
   employmentStatus?: string;
   employerName?: string;
-  isPEP: boolean;
+  isPEP?: boolean;  // 🔧 CHANGE: Make this optional since it might be undefined
+  pep?: boolean;    // 🔧 ADD: Handle potential alternative field name
   pepCountry?: string;
+  pepRemarks?: string; 
   email?: string;
   phone?: string;
   address?: string;
